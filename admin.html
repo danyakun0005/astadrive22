@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASTADRIVE22 — Админ-панель</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="admin-body">
+
+  <div class="admin-login" id="adminLogin">
+      <div class="admin-login__card">
+        <div class="admin-login__logo">⚡ ASTADRIVE22</div>
+        <h2 class="admin-login__title">🔐 Панель управления</h2>
+        <p class="admin-login__subtitle">🔑 Введите пароль для входа</p>
+      <input type="password" class="admin-login__input" id="loginPass" placeholder="Пароль" onkeydown="if(event.key==='Enter') adminLogin()">
+      <button class="btn btn--primary" onclick="adminLogin()" style="width:100%">🔓 Войти</button>
+      <p class="admin-login__error" id="loginError">Неверный пароль</p>
+    </div>
+  </div>
+
+  <div class="admin" id="adminPanel" style="display:none">
+    <header class="admin-header">
+      <div class="container admin-header__inner">
+        <a href="index.html" class="logo">
+          <span class="logo__icon">⚡</span>
+          <span class="logo__text">ASTA<span class="logo__accent">DRIVE</span>22</span>
+        </a>
+        <div class="admin-tabs">
+          <button class="admin-tab active" onclick="switchAdminTab('rent')" id="tabRent">🚲 Аренда</button>
+          <button class="admin-tab" onclick="switchAdminTab('shop')" id="tabShop">🛒 Магазин</button>
+          <button class="admin-tab" onclick="switchAdminTab('orders')" id="tabOrders">📩 Заявки</button>
+        </div>
+        <button class="btn btn--primary" onclick="adminLogout()" style="padding:8px 20px;font-size:0.85rem">Выйти</button>
+      </div>
+    </header>
+
+    <main class="admin-main">
+      <div class="container">
+
+        <!-- ===== RENT TAB ===== -->
+        <div id="adminRent" class="admin-tab-content">
+          <div class="admin-stats" id="rentStats"></div>
+          <div class="admin-toolbar">
+            <h2 class="admin-toolbar__title">⚙️ Управление арендой</h2>
+            <button class="btn btn--primary" onclick="showAddForm('rent')">🚲 + Добавить велик</button>
+          </div>
+          <div class="admin-add-form" id="rentAddForm" style="display:none">
+            <h3>🚲 Новый электровелосипед (аренда)</h3>
+            <div class="admin-add-form__grid">
+              <input type="text" id="rentName" placeholder="🚲 Название">
+              <input type="text" id="rentPower" placeholder="⚡ Мощность">
+              <input type="text" id="rentSpeed" placeholder="🚀 Скорость">
+              <input type="text" id="rentLoad" placeholder="🏋️ Нагрузка">
+              <input type="text" id="rentBattery" placeholder="🔋 Ёмкость АКБ">
+              <div class="admin-file-wrap"><input type="file" id="rentImage" accept="image/*" class="admin-file-input"><span class="admin-file-label">📷 Выбрать фото</span></div>
+              <input type="number" id="rentPriceDay" placeholder="📅 Цена день (₽)" min="0">
+              <input type="number" id="rentPriceWeek" placeholder="📅 Цена неделя (₽)" min="0">
+              <input type="number" id="rentPriceMonth" placeholder="📅 Цена месяц (₽)" min="0">
+            </div>
+            <div class="admin-add-form__actions">
+              <button class="btn btn--primary btn--green" onclick="saveNewBike()">💾 Сохранить</button>
+              <button class="btn admin-btn-cancel" onclick="hideAddForm('rent')">❌ Отмена</button>
+            </div>
+          </div>
+          <div class="admin-table" id="adminRentList"></div>
+        </div>
+
+        <!-- ===== SHOP TAB ===== -->
+        <div id="adminShop" class="admin-tab-content" style="display:none">
+          <div class="admin-toolbar">
+            <h2 class="admin-toolbar__title">🏪 Товары в продаже</h2>
+            <button class="btn btn--primary" onclick="showAddForm('shop')">🔥 + Добавить товар</button>
+          </div>
+          <div class="admin-add-form" id="shopAddForm" style="display:none">
+            <h3>🔥 Новый товар (продажа)</h3>
+            <div class="admin-add-form__grid">
+              <input type="text" id="shopName" placeholder="🔥 Название">
+              <input type="text" id="shopPower" placeholder="⚡ Мощность">
+              <input type="text" id="shopSpeed" placeholder="🚀 Скорость">
+              <input type="text" id="shopLoad" placeholder="🏋️ Нагрузка">
+              <input type="text" id="shopBattery" placeholder="🔋 Ёмкость АКБ">
+              <div class="admin-file-wrap"><input type="file" id="shopImage" accept="image/*" class="admin-file-input"><span class="admin-file-label">📷 Выбрать фото</span></div>
+              <input type="number" id="shopPrice" placeholder="💰 Цена продажи (₽)" min="0">
+              <textarea id="shopDesc" placeholder="📝 Описание" rows="3" style="grid-column:1/-1;padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;font-family:Inter,sans-serif;color:var(--text);outline:none;resize:vertical"></textarea>
+            </div>
+            <div class="admin-add-form__actions">
+              <button class="btn btn--primary btn--green" onclick="saveNewShopItem()">💾 Сохранить</button>
+              <button class="btn admin-btn-cancel" onclick="hideAddForm('shop')">❌ Отмена</button>
+            </div>
+          </div>
+          <div class="admin-table" id="adminShopList"></div>
+        </div>
+
+        <!-- ===== ORDERS TAB ===== -->
+        <div id="adminOrders" class="admin-tab-content" style="display:none">
+          <div class="admin-toolbar">
+            <h2 class="admin-toolbar__title">📋 Заявки</h2>
+          </div>
+          <div id="adminOrdersList"></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-database-compat.js"></script>
+<script src="js/data.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

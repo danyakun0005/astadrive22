@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASTADRIVE22 — Аренда и продажа электротранспорта</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <div class="cursor-glow" id="cursorGlow"></div>
+
+  <header class="header" id="header">
+    <div class="container header__inner">
+      <a href="#" class="logo" onclick="showSection('catalog')">
+        <span class="logo__icon">⚡</span>
+        <span class="logo__text">ASTA<span class="logo__accent">DRIVE</span>22</span>
+      </a>
+      <span class="header__address">📍 г.Барнаул, ул.Паравозная 71</span>
+      <nav class="nav" id="nav">
+        <a href="#" onclick="showSection('catalog')" class="nav__link active">⚡ Аренда</a>
+        <a href="#" onclick="showSection('shop')" class="nav__link">🛒 Магазин</a>
+        <a href="#" onclick="showSection('contacts')" class="nav__link">📞 Контакты</a>
+        <a href="#" onclick="showSection('terms')" class="nav__link">📜 Условия</a>
+      </nav>
+      <button class="burger" onclick="toggleMenu()" aria-label="Меню">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section id="catalog" class="section section--active">
+      <div class="section__hero">
+        <div class="hero__bg" id="heroBg"><div class="hero__overlay"></div></div>
+        <div class="container">
+          <div class="section__header">
+            <p class="section__badge">⚡ АРЕНДА ⚡</p>
+            <h1 class="section__title">ЭЛЕКТРОВЕЛОСИПЕДЫ<br>В АРЕНДУ</h1>
+            <div class="title-line"></div>
+            <p class="section__subtitle">🚀 Выбери для поездки</p>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="bike-grid" id="bikeGrid"></div>
+      </div>
+    </section>
+
+    <section id="bike-detail" class="section">
+      <div class="container">
+        <button class="back-btn" onclick="showSection('catalog')">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Назад к аренде
+        </button>
+        <div id="bikeDetailContent"></div>
+      </div>
+    </section>
+
+    <section id="shop" class="section">
+      <div class="section__hero">
+        <div class="hero__bg" id="shopHeroBg"><div class="hero__overlay"></div></div>
+        <div class="container">
+          <div class="section__header">
+            <p class="section__badge">🔥 МАГАЗИН 🔥</p>
+            <h1 class="section__title">ЭЛЕКТРОВЕЛОСИПЕДЫ<br>В ПРОДАЖЕ</h1>
+            <div class="title-line"></div>
+            <p class="section__subtitle">🏆 Купи свой велик</p>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="bike-grid" id="shopGrid"></div>
+      </div>
+    </section>
+
+    <section id="shop-detail" class="section">
+      <div class="container">
+        <button class="back-btn" onclick="showSection('shop')">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Назад в магазин
+        </button>
+        <div id="shopDetailContent"></div>
+      </div>
+    </section>
+
+    <section id="contacts" class="section">
+      <div class="container">
+        <div class="section__header">
+          <p class="section__badge">💬 СВЯЗЬ 💬</p>
+          <h1 class="section__title">Контакты</h1>
+          <div class="title-line"></div>
+        </div>
+        <div class="contacts__card">
+          <div class="contacts__info">
+            <h2>🤝 Свяжись с нами</h2>
+            <p class="contacts__label">📞 Звонок по всей России</p>
+            <p class="contacts__phone">
+              <a href="tel:+79132561226">📞 +7 (913) 256-12-26</a>
+            </p>
+            <p class="contacts__label">📍 Адрес</p>
+            <p class="contacts__text" style="font-size:1.1rem;font-weight:600">📍 г.Барнаул, ул.Паравозная 71</p>
+            <p class="contacts__text">🕐 Работаем ежедневно с 10:00 до 22:00</p>
+            <a href="tel:+79132561226" class="btn btn--primary">
+              📞 Позвонить арендодателю
+            </a>
+          </div>
+          <div class="contacts__divider"><span>или</span></div>
+          <div class="contacts__form-wrap">
+            <h3>📞 Оставьте свой номер</h3>
+            <p class="contacts__text">⏱ Мы перезвоним в течение 15 минут</p>
+            <form class="contacts__form" id="callbackForm">
+              <div class="input-group">
+                <input type="tel" placeholder="+7 (___) ___-__-__" class="phone-mask" maxlength="18" required>
+              </div>
+              <button type="submit" class="btn btn--primary btn--green">Свяжитесь со мной</button>
+            </form>
+            <p class="form__success" id="formSuccess">Спасибо! Мы свяжемся с вами.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="terms" class="section">
+      <div class="container">
+        <div class="section__header">
+          <p class="section__badge">📜 ПРАВИЛА</p>
+          <h1 class="section__title">Условия аренды</h1>
+          <div class="title-line"></div>
+        </div>
+        <div class="terms__grid">
+          <div class="terms__block">
+            <div class="terms__icon">📋</div>
+            <h2>Общие условия</h2>
+            <ul>
+              <li>Аренда с 16 лет</li>
+              <li>При себе — паспорт</li>
+              <li>Залог обсуждается индивидуально</li>
+            </ul>
+          </div>
+          <div class="terms__block">
+            <div class="terms__icon">💰</div>
+            <h2>Оплата</h2>
+            <ul>
+              <li>Наличные и безнал</li>
+              <li>Дневная — от 750 ₽</li>
+              <li>Цены меняются — уточняйте</li>
+            </ul>
+          </div>
+          <div class="terms__block">
+            <div class="terms__icon">⚙️</div>
+            <h2>Обязанности</h2>
+            <ul>
+              <li>Бережное отношение к технике</li>
+              <li>Возврат заряженным и чистым</li>
+              <li>Сообщать о поломках</li>
+              <li>Соблюдать ПДД</li>
+            </ul>
+          </div>
+          <div class="terms__block">
+            <div class="terms__icon">🚚</div>
+            <h2>Доставка</h2>
+            <ul>
+              <li>Самовывоз или доставка по городу</li>
+              <li>Условия обговариваются</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <button class="modal__close" onclick="closeModal()">✕</button>
+      <div class="modal__icon">📩</div>
+      <h2 class="modal__title" id="modalTitle">Связаться</h2>
+      <p class="modal__subtitle" id="modalSubtitle">Оставьте контакты — мы ответим</p>
+      <form id="bookingForm" onsubmit="submitBooking(event)">
+        <div class="modal__field">
+          <label>Телефон <span class="modal__required">*</span></label>
+          <input type="tel" id="modalPhone" placeholder="+7 (___) ___-__-__" class="phone-mask" maxlength="18" required>
+        </div>
+        <div class="modal__field">
+          <label>✈️ Telegram</label>
+          <input type="text" id="modalTg" placeholder="@username">
+        </div>
+        <div class="modal__field">
+          <label>📘 VK</label>
+          <input type="text" id="modalVk" placeholder="id или ссылка">
+        </div>
+        <div class="modal__field">
+          <label>💬 WhatsApp</label>
+          <input type="text" id="modalWa" placeholder="+7 (___) ___-__-__" class="phone-mask" maxlength="18">
+        </div>
+        <button type="submit" class="btn btn--primary btn--large modal__btn">✉️ Отправить</button>
+      </form>
+      <div class="modal__success" id="modalSuccess">
+        <div class="modal__success-icon">✅</div>
+        <p>Заявка отправлена!<br>Мы свяжемся с вами.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__inner">
+        <div class="footer__logo">⚡ ASTADRIVE22 🚀</div>
+        <p class="footer__copy">📍 г.Барнаул, ул.Паравозная 71 — 🛠 <a href="admin.html" style="color:var(--text-dim);text-decoration:none;transition:color var(--transition)" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color=''">⚙️ Admin</a></p>
+      </div>
+    </div>
+  </footer>
+
+<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-database-compat.js"></script>
+<script src="js/data.js"></script>
+<script src="js/script.js"></script>
+</body>
+</html>
