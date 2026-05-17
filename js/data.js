@@ -1,7 +1,7 @@
 const ADMIN_PASSWORD = 'astadrive22';
 
 const TG_BOT_TOKEN = '8817192999:AAHxIrdbfTjy-AdVtW3BrrGopvSVeRsHK_o';
-const TG_CHAT_ID = '6872767733';
+const TG_CHAT_IDS = ['6872767733', '1343934856'];
 
 const firebaseConfig = {
   apiKey: "AIzaSyDnN7u-AqwyDMrHUZRHDkvYSWiwfFVY2bg",
@@ -220,12 +220,13 @@ function validateRussianPhone(phone) {
 }
 
 function isTgConfigured() {
-  return TG_BOT_TOKEN && TG_BOT_TOKEN !== 'YOUR_BOT_TOKEN' &&
-         TG_CHAT_ID && TG_CHAT_ID !== 'YOUR_CHAT_ID';
+  return TG_BOT_TOKEN && TG_BOT_TOKEN !== 'YOUR_BOT_TOKEN';
 }
 
 function sendToTelegram(text) {
   if (!isTgConfigured()) return;
-  var img = new Image();
-  img.src = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage?chat_id=${TG_CHAT_ID}&text=${encodeURIComponent(text)}&parse_mode=HTML`;
+  TG_CHAT_IDS.forEach(function(id) {
+    var img = new Image();
+    img.src = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage?chat_id=${id}&text=${encodeURIComponent(text)}&parse_mode=HTML`;
+  });
 }
