@@ -227,8 +227,24 @@ const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(fn => fn()); }
 
-try {
-  if (typeof firebase !== 'undefined' && firebase) {
+function _loadFirebaseSDK(cb) {
+  var s1 = document.createElement('script');
+  s1.src = 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js';
+  s1.onload = function() {
+    var s2 = document.createElement('script');
+    s2.src = 'https://www.gstatic.com/firebasejs/11.0.0/firebase-database-compat.js';
+    s2.onload = cb;
+    s2.onerror = cb;
+    document.head.appendChild(s2);
+  };
+  s1.onerror = cb;
+  document.head.appendChild(s1);
+  setTimeout(cb, 8000);
+}
+
+function _initFirebase() {
+  try {
+    if (typeof firebase === 'undefined' || !firebase || firebase.apps.length) return;
     firebase.initializeApp({
       apiKey: "AIzaSyDnN7u-AqwyDMrHUZRHDkvYSWiwfFVY2bg",
       authDomain: "astadrive22.firebaseapp.com",
@@ -237,10 +253,10 @@ try {
       storageBucket: "astadrive22.firebasestorage.app",
       appId: "1:920532523972:web:19287cacae336a6311a291"
     });
-    const _db = firebase.database();
+    var _db = firebase.database();
 
-    _db.ref('bikes').on('value', snap => {
-      const raw = snap.val();
+    _db.ref('bikes').on('value', function(snap) {
+      var raw = snap.val();
       if (raw !== null && raw !== undefined) {
         _fbBikes = Array.isArray(raw) ? raw : [];
         saveBikes(_fbBikes);
@@ -250,37 +266,38 @@ try {
       _notify();
     });
 
-    _db.ref('shopItems').on('value', snap => {
-      const raw = snap.val();
+    _db.ref('shopItems').on('value', function(snap) {
+      var raw = snap.val();
       if (raw !== null) saveShopItems(raw);
       else _db.ref('shopItems').set(getShopItems());
     });
 
-    _db.ref('orders').on('value', snap => {
-      const raw = snap.val();
+    _db.ref('orders').on('value', function(snap) {
+      var raw = snap.val();
       if (raw !== null) saveOrders(raw);
     });
 
-    // Override save functions to also push to Firebase
-    const _origSaveBikes = saveBikes;
+    var _origSaveBikes = saveBikes;
     saveBikes = function(bikes) {
       _origSaveBikes(bikes);
-      _db.ref('bikes').set(bikes);
+      try { _db.ref('bikes').set(bikes); } catch(e) {}
     };
-    const _origSaveShop = saveShopItems;
+    var _origSaveShop = saveShopItems;
     saveShopItems = function(items) {
       _origSaveShop(items);
-      _db.ref('shopItems').set(items);
+      try { _db.ref('shopItems').set(items); } catch(e) {}
     };
-    const _origSaveOrders = saveOrders;
+    var _origSaveOrders = saveOrders;
     saveOrders = function(orders) {
       _origSaveOrders(orders);
-      _db.ref('orders').set(orders);
+      try { _db.ref('orders').set(orders); } catch(e) {}
     };
+  } catch(e) {
+    console.log('Firebase init error:', e);
   }
-} catch(e) {
-  console.log('Firebase не доступен — работаем через localStorage');
 }
+
+_loadFirebaseSDK(_initFirebase);
 
 /* ========== UTILITIES ========== */
 function maskPhone(input) {
