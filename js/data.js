@@ -229,25 +229,23 @@ const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
 
-function _fbFetch(path, cb) {
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', _FB_URL + '/' + path + '.json', true);
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      try { cb(JSON.parse(xhr.responseText)); } catch(e) { cb(null); }
-    } else { cb(null); }
-  };
-  xhr.onerror = function() { cb(null); };
-  xhr.send();
+function _fbGet(path) {
+  var url = _FB_URL + (path ? '/' + path + '.json' : '/.json');
+  return fetch(url).then(function(r) {
+    return r.json().catch(function() { return null; });
+  }).catch(function() { return null; });
 }
 
 function _fbPut(path, data) {
-  try {
-    var xhr = new XMLHttpRequest();
-    xhr.open('PUT', _FB_URL + '/' + path + '.json', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.send(JSON.stringify(data));
-  } catch(e) {}
+  fetch(_FB_URL + (path ? '/' + path + '.json' : '/.json'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(function(r) {
+    if (!r.ok) console.warn('FB PUT fail:', r.status);
+  }).catch(function(e) {
+    console.warn('FB PUT err:', e);
+  });
 }
 
 function _fbObjToArr(obj) {
@@ -258,15 +256,15 @@ function _fbObjToArr(obj) {
 
 // Override saves IMMEDIATELY — push to Firebase on every change
 var _origSaveBikes = saveBikes;
-saveBikes = function(b) { _origSaveBikes(b); _fbPut('bikes', b); };
+saveBikes = function(b) { _origSaveBikes(b); try { _fbPut('bikes', b); } catch(e){} };
 var _origSaveShop = saveShopItems;
-saveShopItems = function(s) { _origSaveShop(s); _fbPut('shopItems', s); };
+saveShopItems = function(s) { _origSaveShop(s); try { _fbPut('shopItems', s); } catch(e){} };
 var _origSaveOrders = saveOrders;
-saveOrders = function(o) { _origSaveOrders(o); _fbPut('orders', o); };
+saveOrders = function(o) { _origSaveOrders(o); try { _fbPut('orders', o); } catch(e){} };
 
 // Pull cloud data into localStorage when Firebase responds
-_fbFetch('.json', function(data) {
-  if (data === null) return;
+_fbGet('').then(function(data) {
+  if (!data) return;
   var bikes = _fbObjToArr(data.bikes);
   var shop = _fbObjToArr(data.shopItems);
   var orders = _fbObjToArr(data.orders);
@@ -275,7 +273,6 @@ _fbFetch('.json', function(data) {
   if (orders.length) { _origSaveOrders(orders); }
   _fbReady = true;
   _notify();
-  // If cloud was empty, push whatever we have locally
   if (!bikes.length) _fbPut('bikes', getBikes());
   if (!shop.length) _fbPut('shopItems', getShopItems());
 });
