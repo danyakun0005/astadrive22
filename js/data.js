@@ -224,7 +224,6 @@ function deleteOrder(id) {
 /* ========== FIREBASE CLOUD SYNC (REST API — no SDK needed) ========== */
 const _FB_URL = 'https://astadrive22-default-rtdb.firebaseio.com';
 
-let _fbBikes = [];
 let _fbReady = false;
 const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
@@ -257,40 +256,28 @@ function _fbObjToArr(obj) {
   return [];
 }
 
-function _fbPullAndSync(probeData) {
-  var bikes = probeData ? _fbObjToArr(probeData.bikes) : [];
-  var shop = probeData ? _fbObjToArr(probeData.shopItems) : [];
-  var orders = probeData ? _fbObjToArr(probeData.orders) : [];
-  var changed = false;
-  if (bikes.length) { saveBikes(bikes); changed = true; }
-  if (shop.length) { saveShopItems(shop); changed = true; }
-  if (orders.length) { saveOrders(orders); changed = true; }
-  if (changed) _notify();
-  // Override saves to push to cloud
-  var _origSaveBikes = saveBikes;
-  saveBikes = function(b) { _origSaveBikes(b); _fbPut('bikes', b); };
-  var _origSaveShop = saveShopItems;
-  saveShopItems = function(s) { _origSaveShop(s); _fbPut('shopItems', s); };
-  var _origSaveOrders = saveOrders;
-  saveOrders = function(o) { _origSaveOrders(o); _fbPut('orders', o); };
-}
+// Override saves IMMEDIATELY — push to Firebase on every change
+var _origSaveBikes = saveBikes;
+saveBikes = function(b) { _origSaveBikes(b); _fbPut('bikes', b); };
+var _origSaveShop = saveShopItems;
+saveShopItems = function(s) { _origSaveShop(s); _fbPut('shopItems', s); };
+var _origSaveOrders = saveOrders;
+saveOrders = function(o) { _origSaveOrders(o); _fbPut('orders', o); };
 
-// Probe Firebase connection
+// Pull cloud data into localStorage when Firebase responds
 _fbFetch('.json', function(data) {
-  if (data === null) return; // Firebase unreachable
-  var hasCloud = (data.bikes && _fbObjToArr(data.bikes).length) ||
-                 (data.shopItems && _fbObjToArr(data.shopItems).length);
-  if (!hasCloud) {
-    // No cloud data — push local to cloud first
-    var store = getStore();
-    if (store) {
-      _fbPut('bikes', store.bikes || getBikes());
-      _fbPut('shopItems', store.shopItems || getShopItems());
-    } else {
-      _fbPut('bikes', getBikes());
-    }
-  }
-  _fbPullAndSync(data); // pull cloud data + override saves
+  if (data === null) return;
+  var bikes = _fbObjToArr(data.bikes);
+  var shop = _fbObjToArr(data.shopItems);
+  var orders = _fbObjToArr(data.orders);
+  if (bikes.length) { _origSaveBikes(bikes); }
+  if (shop.length) { _origSaveShop(shop); }
+  if (orders.length) { _origSaveOrders(orders); }
+  _fbReady = true;
+  _notify();
+  // If cloud was empty, push whatever we have locally
+  if (!bikes.length) _fbPut('bikes', getBikes());
+  if (!shop.length) _fbPut('shopItems', getShopItems());
 });
 
 /* ========== UTILITIES ========== */
