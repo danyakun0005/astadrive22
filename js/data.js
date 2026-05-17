@@ -226,15 +226,6 @@ function isTgConfigured() {
 
 function sendToTelegram(text) {
   if (!isTgConfigured()) return;
-  const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage?chat_id=${TG_CHAT_ID}&text=${encodeURIComponent(text)}&parse_mode=HTML`;
-  try {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.send();
-  } catch(e) {
-    try {
-      var img = new Image();
-      img.src = url;
-    } catch(e2) {}
-  }
+  var img = new Image();
+  img.src = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage?chat_id=${TG_CHAT_ID}&text=${encodeURIComponent(text)}&parse_mode=HTML`;
 }
