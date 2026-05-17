@@ -304,6 +304,44 @@ function renderOrders() {
   `).join('');
 }
 
+/* ========== EXPORT / IMPORT ========== */
+function exportData() {
+  var d = getStore();
+  if (!d) { alert('Нет данных для экспорта'); return; }
+  var blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'astadrive22_backup.json';
+  a.click();
+}
+
+function importData(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var data = JSON.parse(ev.target.result);
+      if (!data || typeof data !== 'object') { alert('Неверный формат файла'); return; }
+      // Save to localStorage
+      var store = getStore() || {};
+      if (data.bikes) store.bikes = data.bikes;
+      if (data.shopItems) store.shopItems = data.shopItems;
+      if (data.orders) store.orders = data.orders;
+      if (data.version) store.version = data.version;
+      saveStore(store);
+      // Also push to Firebase if available
+      if (data.bikes) try { _fbPut('bikes', data.bikes); } catch(ex) {}
+      if (data.shopItems) try { _fbPut('shopItems', data.shopItems); } catch(ex) {}
+      if (data.orders) try { _fbPut('orders', data.orders); } catch(ex) {}
+      renderAll();
+      alert('✅ Данные импортированы!');
+    } catch(err) { alert('Ошибка импорта: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderAll();
   onDataChange(renderAll);

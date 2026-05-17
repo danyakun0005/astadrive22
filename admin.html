@@ -46,7 +46,12 @@
           <div class="admin-stats" id="rentStats"></div>
           <div class="admin-toolbar">
             <h2 class="admin-toolbar__title">⚙️ Управление арендой</h2>
-            <button class="btn btn--primary" onclick="showAddForm('rent')">🚲 + Добавить велик</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn--primary" onclick="showAddForm('rent')">🚲 + Добавить велик</button>
+              <button class="btn" style="background:rgba(255,255,255,0.04);color:var(--text-dim)" onclick="exportData()">💾 Экспорт</button>
+              <button class="btn" style="background:rgba(255,255,255,0.04);color:var(--text-dim)" onclick="document.getElementById('importFile').click()">📂 Импорт</button>
+              <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+            </div>
           </div>
           <div class="admin-add-form" id="rentAddForm" style="display:none">
             <h3>🚲 Новый электровелосипед (аренда)</h3>
