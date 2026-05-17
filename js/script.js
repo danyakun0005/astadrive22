@@ -224,7 +224,7 @@ function showSection(id) {
   document.getElementById('nav')?.classList.remove('open');
   document.querySelector('.burger')?.classList.remove('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  history.pushState({ section: id }, '', '#' + id);
+  try { history.pushState({ section: id }, '', '#' + id); } catch(e) {}
 }
 
 window.addEventListener('popstate', (e) => {
