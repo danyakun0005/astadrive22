@@ -134,7 +134,7 @@ function renderBikeDetail(container, item, mode) {
         <div class="bike-detail__status ${statusClass}">${statusText}</div>
         <div class="bike-detail__actions">
           <button class="btn btn--primary" onclick="openBookingModal('${isRent ? 'rent' : 'shop'}', '${item.name.replace(/'/g, "\\'")}')">
-            📩 Связаться
+            ${isRent ? '📩 Арендовать' : '🔥 Купить'}
           </button>
           <a href="tel:+79132561226" class="btn btn--primary btn--green" style="text-align:center">
             📞 +7 (913) 256-12-26
@@ -214,7 +214,20 @@ function showSection(id) {
   document.getElementById('nav')?.classList.remove('open');
   document.querySelector('.burger')?.classList.remove('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  history.pushState({ section: id }, '', '#' + id);
 }
+
+window.addEventListener('popstate', (e) => {
+  const id = (e.state && e.state.section) || 'catalog';
+  const section = document.getElementById(id);
+  if (section && (id === 'bike-detail' || id === 'shop-detail')) {
+    showSection(id === 'bike-detail' ? 'catalog' : 'shop');
+  } else if (section) {
+    showSection(id);
+  } else {
+    showSection('catalog');
+  }
+});
 
 function toggleMenu() {
   document.getElementById('nav').classList.toggle('open');
