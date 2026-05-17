@@ -55,22 +55,28 @@ function getStore() {
 }
 
 function saveStore(store) {
-  store.version = DATA_VERSION;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  try {
+    store.version = DATA_VERSION;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch(e) {}
 }
 
 /* ========== BIKES ========== */
 function getBikes() {
-  const store = getStore();
-  if (store && store.bikes && store.bikes.length) return store.bikes;
-  saveStore({ version: DATA_VERSION, bikes: defaultBikes, shopItems: [], orders: [] });
+  try {
+    const store = getStore();
+    if (store && store.bikes && store.bikes.length) return store.bikes;
+  } catch(e) {}
+  try { saveStore({ version: DATA_VERSION, bikes: defaultBikes, shopItems: [], orders: [] }); } catch(e) {}
   return defaultBikes;
 }
 
 function saveBikes(bikes) {
-  const store = getStore() || {};
-  store.bikes = bikes;
-  saveStore(store);
+  try {
+    const store = getStore() || {};
+    store.bikes = bikes;
+    saveStore(store);
+  } catch(e) {}
 }
 
 function getBikeById(id) { return getBikes().find(b => b.id === id); }
@@ -144,14 +150,19 @@ function formatCurrency(amount) {
 
 /* ========== SHOP ITEMS ========== */
 function getShopItems() {
-  const store = getStore();
-  return (store && store.shopItems) || [];
+  try {
+    const store = getStore();
+    if (store && store.shopItems) return store.shopItems;
+  } catch(e) {}
+  return [];
 }
 
 function saveShopItems(items) {
-  const store = getStore() || {};
-  store.shopItems = items;
-  saveStore(store);
+  try {
+    const store = getStore() || {};
+    store.shopItems = items;
+    saveStore(store);
+  } catch(e) {}
 }
 
 function getShopItemById(id) { return getShopItems().find(s => s.id === id); }
@@ -183,14 +194,19 @@ function deleteShopItem(id) {
 
 /* ========== ORDERS ========== */
 function getOrders() {
-  const store = getStore();
-  return (store && store.orders) || [];
+  try {
+    const store = getStore();
+    if (store && store.orders) return store.orders;
+  } catch(e) {}
+  return [];
 }
 
 function saveOrders(orders) {
-  const store = getStore() || {};
-  store.orders = orders;
-  saveStore(store);
+  try {
+    const store = getStore() || {};
+    store.orders = orders;
+    saveStore(store);
+  } catch(e) {}
 }
 
 function addOrder(order) {
