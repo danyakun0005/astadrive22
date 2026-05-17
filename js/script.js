@@ -5,6 +5,7 @@ function renderCatalog() {
   grid.innerHTML = bikes.map((bike, i) => {
     const cls = bike.inStock ? '' : 'bike-card__status--out';
     const txt = bike.inStock ? 'В наличии' : 'В аренде';
+    const name = bike.name.replace(/'/g, "\\'");
     return `
       <div class="bike-card" onclick="showBikeDetail(${bike.id})" style="animation-delay:${i * 0.06}s">
         <div class="bike-card__inner">
@@ -22,6 +23,10 @@ function renderCatalog() {
               <span>📅 ${formatCurrency(bike.pricing.week)}/нед</span>
             </div>
             <span class="bike-card__status ${cls}">${txt}</span>
+            <div class="bike-card__actions">
+              <button class="bike-card__btn" onclick="event.stopPropagation();openBookingModal('rent','${name}')">📩 Арендовать</button>
+              <a href="tel:+79132561226" class="bike-card__btn bike-card__btn--call" onclick="event.stopPropagation()">📞</a>
+            </div>
           </div>
         </div>
       </div>
@@ -45,6 +50,7 @@ function renderShop() {
     if (item.placeholder) return `<div class="shop-empty">Товаров пока нет — скоро добавим</div>`;
     const cls = item.inStock ? '' : 'bike-card__status--out';
     const txt = item.inStock ? 'В наличии' : 'Продано';
+    const sname = item.name.replace(/'/g, "\\'");
     return `
       <div class="bike-card" onclick="showShopDetail(${item.id})" style="animation-delay:${i * 0.06}s">
         <div class="bike-card__inner">
@@ -59,6 +65,10 @@ function renderShop() {
             </div>
             <div class="bike-card__pricing"><span>💰 ${formatCurrency(item.price)}</span></div>
             <span class="bike-card__status ${cls}">${txt}</span>
+            <div class="bike-card__actions">
+              <button class="bike-card__btn" onclick="event.stopPropagation();openBookingModal('shop','${sname}')">🔥 Купить</button>
+              <a href="tel:+79132561226" class="bike-card__btn bike-card__btn--call" onclick="event.stopPropagation()">📞</a>
+            </div>
           </div>
         </div>
       </div>

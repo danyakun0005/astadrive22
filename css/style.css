@@ -198,6 +198,40 @@ main { flex: 1; position: relative; z-index: 2; }
 
 .section--active { display: block; }
 
+.bike-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.bike-card__btn {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition);
+  background: rgba(102,255,0,0.08);
+  border: 1px solid rgba(102,255,0,0.2);
+  color: var(--green);
+  text-align: center;
+}
+
+.bike-card__btn:hover {
+  background: var(--green);
+  color: #080f0a;
+  box-shadow: 0 0 25px var(--green-glow);
+  transform: translateY(-2px);
+}
+
+.bike-card__btn--call {
+  flex: 0 0 46px;
+  font-size: 1.1rem;
+  padding: 10px 0;
+}
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }
