@@ -1,7 +1,7 @@
 const ADMIN_PASSWORD = 'astadrive22';
 
 const TG_BOT_TOKEN = '8817192999:AAHxIrdbfTjy-AdVtW3BrrGopvSVeRsHK_o';
-const TG_CHAT_ID = '1343934856';
+const TG_CHAT_ID = '6872767733';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDnN7u-AqwyDMrHUZRHDkvYSWiwfFVY2bg",
