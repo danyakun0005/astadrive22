@@ -229,24 +229,35 @@ const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
 
-function _fbGet(path) {
+function _fbReq(method, path, data) {
   var url = _FB_URL + (path ? '/' + path + '.json' : '/.json');
-  return fetch(url).then(function(r) {
-    return r.json().catch(function() { return null; });
-  }).catch(function() { return null; });
-}
-
-function _fbPut(path, data) {
-  fetch(_FB_URL + (path ? '/' + path + '.json' : '/.json'), {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  }).then(function(r) {
-    if (!r.ok) console.warn('FB PUT fail:', r.status);
-  }).catch(function(e) {
-    console.warn('FB PUT err:', e);
+  if (typeof fetch !== 'undefined') {
+    return fetch(url, {
+      method: method,
+      headers: data ? { 'Content-Type': 'application/json' } : undefined,
+      body: data ? JSON.stringify(data) : undefined
+    }).then(function(r) { return r.status === 200 ? r.json().catch(function(){return null}) : null; })
+    .catch(function(){ return null; });
+  }
+  // fallback to async XHR
+  return new Promise(function(resolve) {
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open(method, url, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onload = function() {
+        if (xhr.status === 200) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); } }
+        else resolve(null);
+      };
+      xhr.onerror = function() { resolve(null); };
+      xhr.send(data ? JSON.stringify(data) : null);
+    } catch(e) { resolve(null); }
   });
 }
+
+function _fbGet(path) { return _fbReq('GET', path); }
+
+function _fbPut(path, data) { _fbReq('PUT', path, data); }
 
 function _fbObjToArr(obj) {
   if (Array.isArray(obj)) return obj;
