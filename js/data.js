@@ -221,71 +221,114 @@ function deleteOrder(id) {
   saveOrders(getOrders().filter(o => o.id !== id));
 }
 
-/* ========== FIREBASE CLOUD SYNC (REST API — no SDK needed) ========== */
-const _FB_URL = 'https://astadrive22-default-rtdb.firebaseio.com';
+/* ========== GITHUB CLOUD SYNC ========== */
+// Token stored in localStorage (set once in admin settings)
+function _ghToken() { try { return localStorage.getItem('astadrive22_gh_token') || ''; } catch(e) { return ''; } }
 
-let _fbReady = false;
+const _GH_OWNER = 'danyakun0005';
+const _GH_REPO = 'astadrive22';
+const _GH_PATH = 'db.json';
+const _GH_RAW = 'https://raw.githubusercontent.com/' + _GH_OWNER + '/' + _GH_REPO + '/main/' + _GH_PATH;
+const _GH_API = 'https://api.github.com';
+
+let _ghReady = false;
+let _ghSha = null;
 const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
 
-function _fbReq(method, path, data) {
-  var url = _FB_URL + (path ? '/' + path + '.json' : '/.json');
+// Read from raw.githubusercontent.com — no token needed (works on all devices)
+function _ghGet() {
   if (typeof fetch !== 'undefined') {
-    return fetch(url, {
-      method: method,
-      headers: data ? { 'Content-Type': 'application/json' } : undefined,
-      body: data ? JSON.stringify(data) : undefined
-    }).then(function(r) { return r.status === 200 ? r.json().catch(function(){return null}) : null; })
-    .catch(function(){ return null; });
+    return fetch(_GH_RAW + '?_=' + Date.now()).then(function(r) {
+      if (!r.ok) return null;
+      return r.json().catch(function(){return null});
+    }).catch(function(){return null});
   }
-  // fallback to async XHR
   return new Promise(function(resolve) {
     try {
       var xhr = new XMLHttpRequest();
-      xhr.open(method, url, true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.open('GET', _GH_RAW + '?_=' + Date.now(), true);
       xhr.onload = function() {
         if (xhr.status === 200) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); } }
         else resolve(null);
       };
       xhr.onerror = function() { resolve(null); };
-      xhr.send(data ? JSON.stringify(data) : null);
+      xhr.send();
     } catch(e) { resolve(null); }
   });
 }
 
-function _fbGet(path) { return _fbReq('GET', path); }
-
-function _fbPut(path, data) { _fbReq('PUT', path, data); }
-
-function _fbObjToArr(obj) {
-  if (Array.isArray(obj)) return obj;
-  if (obj && typeof obj === 'object') return Object.keys(obj).map(function(k) { return obj[k]; });
-  return [];
+// Write via API — needs token from localStorage (admin only)
+function _ghPut(data) {
+  var token = _ghToken();
+  if (!token) return;
+  var url = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + _GH_PATH;
+  // Get SHA then write
+  var promise = _ghSha ? Promise.resolve(_ghSha) : _ghGetSha(token).then(function(sha){ _ghSha = sha; return sha; });
+  return promise.then(function(sha) {
+    var content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    var body = JSON.stringify({ message: 'sync update', content: content, sha: sha || undefined });
+    return _ghFetch(url, 'PUT', body, token).then(function(r) {
+      if (r && r.content) _ghSha = r.content.sha;
+    }).catch(function(){});
+  });
 }
 
-// Override saves IMMEDIATELY — push to Firebase on every change
-var _origSaveBikes = saveBikes;
-saveBikes = function(b) { _origSaveBikes(b); try { _fbPut('bikes', b); } catch(e){} };
-var _origSaveShop = saveShopItems;
-saveShopItems = function(s) { _origSaveShop(s); try { _fbPut('shopItems', s); } catch(e){} };
-var _origSaveOrders = saveOrders;
-saveOrders = function(o) { _origSaveOrders(o); try { _fbPut('orders', o); } catch(e){} };
+function _ghGetSha(token) {
+  var url = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + _GH_PATH;
+  return _ghFetch(url, 'GET', null, token).then(function(r) {
+    if (r && r.sha) return r.sha;
+    return null;
+  });
+}
 
-// Pull cloud data into localStorage when Firebase responds
-_fbGet('').then(function(data) {
+function _ghFetch(url, method, body, token) {
+  var headers = { 'Accept': 'application/vnd.github+json' };
+  if (token) headers['Authorization'] = 'token ' + token;
+  if (typeof fetch !== 'undefined') {
+    return fetch(url, {
+      method: method || 'GET',
+      headers: headers,
+      body: body || undefined
+    }).then(function(r) {
+      if (!r.ok) { console.warn('GH fail:', r.status); return null; }
+      return r.json().catch(function(){return null});
+    }).catch(function(e){ console.warn('GH err:', e); return null; });
+  }
+  return new Promise(function(resolve) {
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open(method || 'GET', url, true);
+      if (token) xhr.setRequestHeader('Authorization', 'token ' + token);
+      xhr.setRequestHeader('Accept', 'application/vnd.github+json');
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); }
+        } else { resolve(null); }
+      };
+      xhr.onerror = function() { resolve(null); };
+      xhr.send(body || null);
+    } catch(e) { resolve(null); }
+  });
+}
+
+// Override saves — push to GitHub on every change
+var _origSaveBikes = saveBikes;
+saveBikes = function(b) { _origSaveBikes(b); try { _ghPut({ bikes: b, shopItems: getShopItems(), orders: getOrders() }); } catch(e){} };
+var _origSaveShop = saveShopItems;
+saveShopItems = function(s) { _origSaveShop(s); try { _ghPut({ bikes: getBikes(), shopItems: s, orders: getOrders() }); } catch(e){} };
+var _origSaveOrders = saveOrders;
+saveOrders = function(o) { _origSaveOrders(o); try { _ghPut({ bikes: getBikes(), shopItems: getShopItems(), orders: o }); } catch(e){} };
+
+// Pull cloud data into localStorage (no token needed)
+_ghGet().then(function(data) {
   if (!data) return;
-  var bikes = _fbObjToArr(data.bikes);
-  var shop = _fbObjToArr(data.shopItems);
-  var orders = _fbObjToArr(data.orders);
-  if (bikes.length) { _origSaveBikes(bikes); }
-  if (shop.length) { _origSaveShop(shop); }
-  if (orders.length) { _origSaveOrders(orders); }
-  _fbReady = true;
+  if (data.bikes && data.bikes.length) { _origSaveBikes(data.bikes); }
+  if (data.shopItems && data.shopItems.length) { _origSaveShop(data.shopItems); }
+  if (data.orders && data.orders.length) { _origSaveOrders(data.orders); }
+  _ghReady = true;
   _notify();
-  if (!bikes.length) _fbPut('bikes', getBikes());
-  if (!shop.length) _fbPut('shopItems', getShopItems());
 });
 
 /* ========== UTILITIES ========== */

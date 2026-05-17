@@ -36,6 +36,10 @@ function switchAdminTab(tab) {
     document.getElementById('adminOrders').style.display = 'block';
     document.getElementById('tabOrders').classList.add('active');
     renderOrders();
+  } else if (tab === 'settings') {
+    document.getElementById('adminSettings').style.display = 'block';
+    document.getElementById('tabSettings').classList.add('active');
+    loadSettings();
   }
 }
 
@@ -304,6 +308,42 @@ function renderOrders() {
   `).join('');
 }
 
+/* ========== SETTINGS ========== */
+function saveGhToken() {
+  var input = document.getElementById('ghTokenInput');
+  var token = input.value.trim();
+  if (!token) { document.getElementById('tokenStatus').textContent = '❌ Введи токен'; return; }
+  try {
+    localStorage.setItem('astadrive22_gh_token', token);
+    document.getElementById('tokenStatus').textContent = '✅ Токен сохранён! (только в этом браузере)';
+    // Test write
+    _ghPut({}).then(function() { updateSyncStatus(); });
+  } catch(e) {
+    document.getElementById('tokenStatus').textContent = '❌ Ошибка сохранения';
+  }
+}
+
+function updateSyncStatus() {
+  var el = document.getElementById('syncStatus');
+  if (!el) return;
+  var token = _ghToken();
+  if (!token) { el.innerHTML = '❌ Токен не настроен. Вставь токен выше.'; return; }
+  el.innerHTML = '⏳ Проверка токена...';
+  _ghGetSha(token).then(function(sha) {
+    if (sha) el.innerHTML = '✅ Токен работает! Данные синхронизируются.';
+    else el.innerHTML = '❌ Токен недействителен. Проверь права (нужно repo).';
+  });
+}
+
+function loadSettings() {
+  var input = document.getElementById('ghTokenInput');
+  if (input) {
+    var token = _ghToken();
+    if (token) input.value = token;
+  }
+  updateSyncStatus();
+}
+
 /* ========== EXPORT / IMPORT ========== */
 function exportData() {
   var d = getStore();
@@ -331,9 +371,7 @@ function importData(e) {
       if (data.version) store.version = data.version;
       saveStore(store);
       // Also push to Firebase if available
-      if (data.bikes) try { _fbPut('bikes', data.bikes); } catch(ex) {}
-      if (data.shopItems) try { _fbPut('shopItems', data.shopItems); } catch(ex) {}
-      if (data.orders) try { _fbPut('orders', data.orders); } catch(ex) {}
+      if (data.bikes || data.shopItems || data.orders) try { _ghPut(data); } catch(ex) {}
       renderAll();
       alert('✅ Данные импортированы!');
     } catch(err) { alert('Ошибка импорта: ' + err.message); }
