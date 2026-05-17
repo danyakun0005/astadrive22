@@ -251,43 +251,49 @@ function _fbPut(path, data) {
   } catch(e) {}
 }
 
-function _initFirebase() {
-  _fbReady = true;
-  // Pull cloud data → localStorage
-  _fbFetch('bikes', function(data) {
-    if (Array.isArray(data) && data.length) { saveBikes(data); } else { _fbPut('bikes', getBikes()); }
-    _notify();
-  });
-  _fbFetch('shopItems', function(data) {
-    if (Array.isArray(data) && data.length) { saveShopItems(data); } else { _fbPut('shopItems', getShopItems()); }
-  });
-  _fbFetch('orders', function(data) {
-    if (Array.isArray(data) && data.length) { saveOrders(data); }
-  });
-  // Override saves to push to cloud
-  var _origSaveBikes = saveBikes;
-  saveBikes = function(bikes) { _origSaveBikes(bikes); _fbPut('bikes', bikes); };
-  var _origSaveShop = saveShopItems;
-  saveShopItems = function(items) { _origSaveShop(items); _fbPut('shopItems', items); };
-  var _origSaveOrders = saveOrders;
-  saveOrders = function(orders) { _origSaveOrders(orders); _fbPut('orders', orders); };
+function _fbObjToArr(obj) {
+  if (Array.isArray(obj)) return obj;
+  if (obj && typeof obj === 'object') return Object.keys(obj).map(function(k) { return obj[k]; });
+  return [];
 }
 
-// Try Firebase cloud sync — probe connection first
+function _fbPullAndSync() {
+  // Fetch ALL data from Firebase root at once, save to localStorage
+  _fbFetch('.json', function(data) {
+    if (!data) return;
+    var bikes = _fbObjToArr(data.bikes);
+    var shop = _fbObjToArr(data.shopItems);
+    var orders = _fbObjToArr(data.orders);
+    var changed = false;
+    if (bikes.length) { saveBikes(bikes); changed = true; }
+    if (shop.length) { saveShopItems(shop); changed = true; }
+    if (orders.length) { saveOrders(orders); changed = true; }
+    if (changed) _notify();
+    // Override saves to push to cloud
+    var _origSaveBikes = saveBikes;
+    saveBikes = function(b) { _origSaveBikes(b); _fbPut('bikes', b); };
+    var _origSaveShop = saveShopItems;
+    saveShopItems = function(s) { _origSaveShop(s); _fbPut('shopItems', s); };
+    var _origSaveOrders = saveOrders;
+    saveOrders = function(o) { _origSaveOrders(o); _fbPut('orders', o); };
+  });
+}
+
+// Probe Firebase connection
 _fbFetch('.json', function(data) {
   if (data === null) return; // Firebase unreachable
-  // Firebase available — check if we have cloud data
-  var store = getStore();
-  if (data.bikes && Array.isArray(data.bikes) && data.bikes.length) {
-    _initFirebase(); // cloud has data, init sync
-  } else if (store) {
-    // No cloud data yet — push local data to cloud
-    _fbPut('bikes', store.bikes || getBikes());
-    _fbPut('shopItems', store.shopItems || getShopItems());
-    _fbPut('orders', store.orders || getOrders());
-    _initFirebase();
+  var hasCloud = (data.bikes && _fbObjToArr(data.bikes).length) ||
+                 (data.shopItems && _fbObjToArr(data.shopItems).length);
+  if (hasCloud) {
+    _fbPullAndSync(); // cloud has data — pull it
   } else {
-    _initFirebase(); // no local either, init empty
+    // No cloud data — push local
+    var store = getStore();
+    if (store) {
+      _fbPut('bikes', store.bikes || getBikes());
+      _fbPut('shopItems', store.shopItems || getShopItems());
+    }
+    _fbPullAndSync();
   }
 });
 
