@@ -104,8 +104,6 @@ body::after {
 
 .logo:hover { opacity: 0.8; }
 
-.logo__icon { font-size: 1.5rem; }
-
 .logo__text {
   font-family: 'Orbitron', monospace;
   font-size: 1.4rem;

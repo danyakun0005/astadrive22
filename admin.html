@@ -13,9 +13,9 @@
 
   <div class="admin-login" id="adminLogin">
       <div class="admin-login__card">
-        <div class="admin-login__logo">⚡ ASTADRIVE22</div>
-        <h2 class="admin-login__title">🔐 Панель управления</h2>
-        <p class="admin-login__subtitle">🔑 Введите пароль для входа</p>
+        <div class="admin-login__logo">ASTADRIVE22</div>
+        <h2 class="admin-login__title">Панель управления</h2>
+        <p class="admin-login__subtitle">Введите пароль для входа</p>
       <input type="password" class="admin-login__input" id="loginPass" placeholder="Пароль" onkeydown="if(event.key==='Enter') adminLogin()">
       <button class="btn btn--primary" onclick="adminLogin()" style="width:100%">🔓 Войти</button>
       <p class="admin-login__error" id="loginError">Неверный пароль</p>
@@ -26,13 +26,12 @@
     <header class="admin-header">
       <div class="container admin-header__inner">
         <a href="index.html" class="logo">
-          <span class="logo__icon">⚡</span>
           <span class="logo__text">ASTA<span class="logo__accent">DRIVE</span>22</span>
         </a>
         <div class="admin-tabs">
-          <button class="admin-tab active" onclick="switchAdminTab('rent')" id="tabRent">🚲 Аренда</button>
-          <button class="admin-tab" onclick="switchAdminTab('shop')" id="tabShop">🛒 Магазин</button>
-          <button class="admin-tab" onclick="switchAdminTab('orders')" id="tabOrders">📩 Заявки</button>
+          <button class="admin-tab active" onclick="switchAdminTab('rent')" id="tabRent">Аренда</button>
+          <button class="admin-tab" onclick="switchAdminTab('shop')" id="tabShop">Магазин</button>
+          <button class="admin-tab" onclick="switchAdminTab('orders')" id="tabOrders">Заявки</button>
         </div>
         <button class="btn btn--primary" onclick="adminLogout()" style="padding:8px 20px;font-size:0.85rem">Выйти</button>
       </div>
