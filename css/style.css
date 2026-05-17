@@ -133,6 +133,9 @@ body::after {
   gap: 4px;
 }
 .nav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   text-decoration: none;
   color: var(--text-dim);
   padding: 10px 20px;
