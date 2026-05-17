@@ -24,7 +24,7 @@ function renderCatalog() {
             </div>
             <span class="bike-card__status ${cls}">${txt}</span>
             <div class="bike-card__actions">
-              <button class="bike-card__btn" onclick="event.stopPropagation();openBookingModal('rent','${name}')">📩 Арендовать</button>
+              <button class="bike-card__btn" onclick="event.stopPropagation();showBikeDetail(${bike.id})">📩 Арендовать</button>
               <a href="tel:+79132561226" class="bike-card__btn bike-card__btn--call" onclick="event.stopPropagation()">📞</a>
             </div>
           </div>
@@ -66,7 +66,7 @@ function renderShop() {
             <div class="bike-card__pricing"><span>💰 ${formatCurrency(item.price)}</span></div>
             <span class="bike-card__status ${cls}">${txt}</span>
             <div class="bike-card__actions">
-              <button class="bike-card__btn" onclick="event.stopPropagation();openBookingModal('shop','${sname}')">🔥 Купить</button>
+              <button class="bike-card__btn" onclick="event.stopPropagation();showShopDetail(${item.id})">🔥 Купить</button>
               <a href="tel:+79132561226" class="bike-card__btn bike-card__btn--call" onclick="event.stopPropagation()">📞</a>
             </div>
           </div>
