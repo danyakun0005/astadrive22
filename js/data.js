@@ -3,17 +3,8 @@ const ADMIN_PASSWORD = 'astadrive22';
 const TG_BOT_TOKEN = '8817192999:AAHxIrdbfTjy-AdVtW3BrrGopvSVeRsHK_o';
 const TG_CHAT_IDS = ['6872767733', '1343934856'];
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDnN7u-AqwyDMrHUZRHDkvYSWiwfFVY2bg",
-  authDomain: "astadrive22.firebaseapp.com",
-  databaseURL: "https://astadrive22-default-rtdb.firebaseio.com",
-  projectId: "astadrive22",
-  storageBucket: "astadrive22.firebasestorage.app",
-  appId: "1:920532523972:web:19287cacae336a6311a291"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const STORAGE_KEY = 'astadrive22_data';
+const DATA_VERSION = 4;
 
 const defaultBikes = [
   { id: 1, name: "Maikolin H10", inStock: true, image: '',
@@ -51,83 +42,79 @@ const defaultBikes = [
     pricing: { day: 750, week: 2800, month: 10500 }, earnings: [] }
 ];
 
-/* ========== CACHE + LISTENERS ========== */
-let _bikes = [...defaultBikes];
-let _shopItems = [];
-let _orders = [];
-let _dataReady = false;
-let _fbReady = false;
-
-const _renderFns = [];
-function onDataChange(fn) { _renderFns.push(fn); }
-function _notify() { _renderFns.forEach(fn => fn()); }
-
-db.ref('bikes').on('value', snap => {
-  const raw = snap.val();
-  if (raw !== null && raw !== undefined) {
-    _bikes = Array.isArray(raw) ? raw : [];
-  } else if (!_fbReady) {
-    db.ref('bikes').set([...defaultBikes]);
-  }
-  _fbReady = true;
-  _dataReady = true;
-  _notify();
-});
-
-db.ref('shopItems').on('value', snap => {
-  _shopItems = snap.val() || [];
-  _notify();
-});
-
-db.ref('orders').on('value', snap => {
-  _orders = snap.val() || [];
-  _notify();
-});
-
-function _save(path, data) {
-  db.ref(path).set(data);
+/* ========== LOCAL STORAGE (always works) ========== */
+function getStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data && data.version === DATA_VERSION) return data;
+    }
+  } catch (e) {}
+  return null;
 }
 
-/* ========== BIKES (RENTAL) ========== */
-function getBikes() { return _bikes; }
-function getBikeById(id) { return _bikes.find(b => b.id === id); }
+function saveStore(store) {
+  store.version = DATA_VERSION;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}
+
+/* ========== BIKES ========== */
+function getBikes() {
+  const store = getStore();
+  if (store && store.bikes && store.bikes.length) return store.bikes;
+  saveStore({ version: DATA_VERSION, bikes: defaultBikes, shopItems: [], orders: [] });
+  return defaultBikes;
+}
+
+function saveBikes(bikes) {
+  const store = getStore() || {};
+  store.bikes = bikes;
+  saveStore(store);
+}
+
+function getBikeById(id) { return getBikes().find(b => b.id === id); }
 
 function addBike(bike) {
-  bike.id = (_bikes.reduce((m, b) => Math.max(m, b.id), 0)) + 1;
+  const bikes = getBikes();
+  bike.id = (bikes.reduce((m, b) => Math.max(m, b.id), 0)) + 1;
   bike.earnings = bike.earnings || [];
   bike.image = bike.image || '';
   bike.pricing = bike.pricing || { day: 0, week: 0, month: 0 };
-  _bikes.push(bike);
-  _save('bikes', _bikes);
+  bikes.push(bike);
+  saveBikes(bikes);
   return bike;
 }
 
 function updateBike(id, updates) {
-  const idx = _bikes.findIndex(b => b.id === id);
+  const bikes = getBikes();
+  const idx = bikes.findIndex(b => b.id === id);
   if (idx === -1) return null;
-  _bikes[idx] = { ..._bikes[idx], ...updates };
-  _save('bikes', _bikes);
-  return _bikes[idx];
+  bikes[idx] = { ...bikes[idx], ...updates };
+  saveBikes(bikes);
+  return bikes[idx];
 }
 
 function deleteBike(id) {
-  _bikes = _bikes.filter(b => b.id !== id);
-  _save('bikes', _bikes);
+  let bikes = getBikes();
+  saveBikes(bikes.filter(b => b.id !== id));
 }
 
 function addEarning(bikeId, amount, note) {
-  const bike = _bikes.find(b => b.id === bikeId);
+  const bikes = getBikes();
+  const bike = bikes.find(b => b.id === bikeId);
   if (!bike) return null;
   bike.earnings.push({ amount: Number(amount), date: new Date().toLocaleDateString('ru-RU'), note: note || '' });
-  _save('bikes', _bikes);
+  saveBikes(bikes);
   return bike;
 }
 
 function resetEarnings(bikeId) {
-  const bike = _bikes.find(b => b.id === bikeId);
+  const bikes = getBikes();
+  const bike = bikes.find(b => b.id === bikeId);
   if (!bike) return null;
   bike.earnings = [];
-  _save('bikes', _bikes);
+  saveBikes(bikes);
   return bike;
 }
 
@@ -156,48 +143,132 @@ function formatCurrency(amount) {
 }
 
 /* ========== SHOP ITEMS ========== */
-function getShopItems() { return _shopItems; }
-function getShopItemById(id) { return _shopItems.find(s => s.id === id); }
+function getShopItems() {
+  const store = getStore();
+  return (store && store.shopItems) || [];
+}
+
+function saveShopItems(items) {
+  const store = getStore() || {};
+  store.shopItems = items;
+  saveStore(store);
+}
+
+function getShopItemById(id) { return getShopItems().find(s => s.id === id); }
 
 function addShopItem(item) {
-  item.id = (_shopItems.reduce((m, i) => Math.max(m, i.id), 0)) + 1;
+  const items = getShopItems();
+  item.id = (items.reduce((m, i) => Math.max(m, i.id), 0)) + 1;
   item.inStock = true;
   item.image = item.image || '';
   item.description = item.description || '';
   item.price = item.price || 0;
-  item.earnings = item.earnings || [];
-  _shopItems.push(item);
-  _save('shopItems', _shopItems);
+  items.push(item);
+  saveShopItems(items);
   return item;
 }
 
 function updateShopItem(id, updates) {
-  const idx = _shopItems.findIndex(i => i.id === id);
+  const items = getShopItems();
+  const idx = items.findIndex(i => i.id === id);
   if (idx === -1) return null;
-  _shopItems[idx] = { ..._shopItems[idx], ...updates };
-  _save('shopItems', _shopItems);
-  return _shopItems[idx];
+  items[idx] = { ...items[idx], ...updates };
+  saveShopItems(items);
+  return items[idx];
 }
 
 function deleteShopItem(id) {
-  _shopItems = _shopItems.filter(i => i.id !== id);
-  _save('shopItems', _shopItems);
+  saveShopItems(getShopItems().filter(i => i.id !== id));
 }
 
 /* ========== ORDERS ========== */
-function getOrders() { return _orders; }
+function getOrders() {
+  const store = getStore();
+  return (store && store.orders) || [];
+}
+
+function saveOrders(orders) {
+  const store = getStore() || {};
+  store.orders = orders;
+  saveStore(store);
+}
 
 function addOrder(order) {
-  order.id = (_orders.reduce((m, o) => Math.max(m, o.id), 0)) + 1;
+  const orders = getOrders();
+  order.id = (orders.reduce((m, o) => Math.max(m, o.id), 0)) + 1;
   order.date = new Date().toLocaleString('ru-RU');
-  _orders.push(order);
-  _save('orders', _orders);
+  order.type = order.type || '';
+  order.tg = order.tg || '';
+  order.vk = order.vk || '';
+  order.wa = order.wa || '';
+  orders.push(order);
+  saveOrders(orders);
   return order;
 }
 
 function deleteOrder(id) {
-  _orders = _orders.filter(o => o.id !== id);
-  _save('orders', _orders);
+  saveOrders(getOrders().filter(o => o.id !== id));
+}
+
+/* ========== OPTIONAL FIREBASE SYNC ========== */
+let _fbBikes = [];
+const _renderFns = [];
+function onDataChange(fn) { _renderFns.push(fn); }
+function _notify() { _renderFns.forEach(fn => fn()); }
+
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp({
+      apiKey: "AIzaSyDnN7u-AqwyDMrHUZRHDkvYSWiwfFVY2bg",
+      authDomain: "astadrive22.firebaseapp.com",
+      databaseURL: "https://astadrive22-default-rtdb.firebaseio.com",
+      projectId: "astadrive22",
+      storageBucket: "astadrive22.firebasestorage.app",
+      appId: "1:920532523972:web:19287cacae336a6311a291"
+    });
+    const _db = firebase.database();
+
+    _db.ref('bikes').on('value', snap => {
+      const raw = snap.val();
+      if (raw !== null && raw !== undefined) {
+        _fbBikes = Array.isArray(raw) ? raw : [];
+        saveBikes(_fbBikes);
+      } else {
+        _db.ref('bikes').set(getBikes());
+      }
+      _notify();
+    });
+
+    _db.ref('shopItems').on('value', snap => {
+      const raw = snap.val();
+      if (raw !== null) saveShopItems(raw);
+      else _db.ref('shopItems').set(getShopItems());
+    });
+
+    _db.ref('orders').on('value', snap => {
+      const raw = snap.val();
+      if (raw !== null) saveOrders(raw);
+    });
+
+    // Override save functions to also push to Firebase
+    const _origSaveBikes = saveBikes;
+    saveBikes = function(bikes) {
+      _origSaveBikes(bikes);
+      _db.ref('bikes').set(bikes);
+    };
+    const _origSaveShop = saveShopItems;
+    saveShopItems = function(items) {
+      _origSaveShop(items);
+      _db.ref('shopItems').set(items);
+    };
+    const _origSaveOrders = saveOrders;
+    saveOrders = function(orders) {
+      _origSaveOrders(orders);
+      _db.ref('orders').set(orders);
+    };
+  }
+} catch(e) {
+  console.log('Firebase не доступен — работаем через localStorage');
 }
 
 /* ========== UTILITIES ========== */
