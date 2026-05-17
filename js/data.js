@@ -221,83 +221,75 @@ function deleteOrder(id) {
   saveOrders(getOrders().filter(o => o.id !== id));
 }
 
-/* ========== OPTIONAL FIREBASE SYNC ========== */
+/* ========== FIREBASE CLOUD SYNC (REST API — no SDK needed) ========== */
+const _FB_URL = 'https://astadrive22-default-rtdb.firebaseio.com';
+
 let _fbBikes = [];
+let _fbReady = false;
 const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
-function _notify() { _renderFns.forEach(fn => fn()); }
+function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
 
-function _loadFirebaseSDK(cb) {
-  var s1 = document.createElement('script');
-  s1.src = 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js';
-  s1.onload = function() {
-    var s2 = document.createElement('script');
-    s2.src = 'https://www.gstatic.com/firebasejs/11.0.0/firebase-database-compat.js';
-    s2.onload = cb;
-    s2.onerror = cb;
-    document.head.appendChild(s2);
+function _fbFetch(path, cb) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', _FB_URL + '/' + path + '.json', true);
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      try { cb(JSON.parse(xhr.responseText)); } catch(e) { cb(null); }
+    } else { cb(null); }
   };
-  s1.onerror = cb;
-  document.head.appendChild(s1);
-  setTimeout(cb, 8000);
+  xhr.onerror = function() { cb(null); };
+  xhr.send();
+}
+
+function _fbPut(path, data) {
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('PUT', _FB_URL + '/' + path + '.json', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify(data));
+  } catch(e) {}
 }
 
 function _initFirebase() {
-  try {
-    if (typeof firebase === 'undefined' || !firebase || firebase.apps.length) return;
-    firebase.initializeApp({
-      apiKey: "AIzaSyDnN7u-AqwyDMrHUZRHDkvYSWiwfFVY2bg",
-      authDomain: "astadrive22.firebaseapp.com",
-      databaseURL: "https://astadrive22-default-rtdb.firebaseio.com",
-      projectId: "astadrive22",
-      storageBucket: "astadrive22.firebasestorage.app",
-      appId: "1:920532523972:web:19287cacae336a6311a291"
-    });
-    var _db = firebase.database();
-
-    _db.ref('bikes').on('value', function(snap) {
-      var raw = snap.val();
-      if (raw !== null && raw !== undefined) {
-        _fbBikes = Array.isArray(raw) ? raw : [];
-        saveBikes(_fbBikes);
-      } else {
-        _db.ref('bikes').set(getBikes());
-      }
-      _notify();
-    });
-
-    _db.ref('shopItems').on('value', function(snap) {
-      var raw = snap.val();
-      if (raw !== null) saveShopItems(raw);
-      else _db.ref('shopItems').set(getShopItems());
-    });
-
-    _db.ref('orders').on('value', function(snap) {
-      var raw = snap.val();
-      if (raw !== null) saveOrders(raw);
-    });
-
-    var _origSaveBikes = saveBikes;
-    saveBikes = function(bikes) {
-      _origSaveBikes(bikes);
-      try { _db.ref('bikes').set(bikes); } catch(e) {}
-    };
-    var _origSaveShop = saveShopItems;
-    saveShopItems = function(items) {
-      _origSaveShop(items);
-      try { _db.ref('shopItems').set(items); } catch(e) {}
-    };
-    var _origSaveOrders = saveOrders;
-    saveOrders = function(orders) {
-      _origSaveOrders(orders);
-      try { _db.ref('orders').set(orders); } catch(e) {}
-    };
-  } catch(e) {
-    console.log('Firebase init error:', e);
-  }
+  _fbReady = true;
+  // Pull cloud data → localStorage
+  _fbFetch('bikes', function(data) {
+    if (Array.isArray(data) && data.length) { saveBikes(data); } else { _fbPut('bikes', getBikes()); }
+    _notify();
+  });
+  _fbFetch('shopItems', function(data) {
+    if (Array.isArray(data) && data.length) { saveShopItems(data); } else { _fbPut('shopItems', getShopItems()); }
+  });
+  _fbFetch('orders', function(data) {
+    if (Array.isArray(data) && data.length) { saveOrders(data); }
+  });
+  // Override saves to push to cloud
+  var _origSaveBikes = saveBikes;
+  saveBikes = function(bikes) { _origSaveBikes(bikes); _fbPut('bikes', bikes); };
+  var _origSaveShop = saveShopItems;
+  saveShopItems = function(items) { _origSaveShop(items); _fbPut('shopItems', items); };
+  var _origSaveOrders = saveOrders;
+  saveOrders = function(orders) { _origSaveOrders(orders); _fbPut('orders', orders); };
 }
 
-_loadFirebaseSDK(_initFirebase);
+// Try Firebase cloud sync — probe connection first
+_fbFetch('.json', function(data) {
+  if (data === null) return; // Firebase unreachable
+  // Firebase available — check if we have cloud data
+  var store = getStore();
+  if (data.bikes && Array.isArray(data.bikes) && data.bikes.length) {
+    _initFirebase(); // cloud has data, init sync
+  } else if (store) {
+    // No cloud data yet — push local data to cloud
+    _fbPut('bikes', store.bikes || getBikes());
+    _fbPut('shopItems', store.shopItems || getShopItems());
+    _fbPut('orders', store.orders || getOrders());
+    _initFirebase();
+  } else {
+    _initFirebase(); // no local either, init empty
+  }
+});
 
 /* ========== UTILITIES ========== */
 function maskPhone(input) {
