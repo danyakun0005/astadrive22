@@ -132,7 +132,6 @@ body::after {
   align-items: center;
   gap: 4px;
 }
-
 .nav__link {
   text-decoration: none;
   color: var(--text-dim);
@@ -144,14 +143,9 @@ body::after {
   transition: all var(--transition);
   position: relative;
 }
-
+.nav__link + .nav__link { margin-left: 4px; }
 .nav__link:hover { color: var(--text); background: var(--bg-card); }
-
-.nav__link.active {
-  color: var(--green);
-  text-shadow: 0 0 20px rgba(102,255,0,0.2);
-}
-
+.nav__link.active { color: var(--green); }
 .nav__link.active::after {
   content: '';
   position: absolute;
@@ -160,7 +154,6 @@ body::after {
   width: 18px; height: 2px;
   background: var(--green);
   border-radius: 2px;
-  box-shadow: 0 0 10px var(--green-glow);
 }
 
 /* Burger */
@@ -203,6 +196,7 @@ main { flex: 1; position: relative; z-index: 2; }
   gap: 8px;
   margin-top: 14px;
 }
+.bike-card__btn + .bike-card__btn { margin-left: 8px; }
 
 .bike-card__btn {
   flex: 1;
