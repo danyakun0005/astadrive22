@@ -304,5 +304,7 @@ function renderOrders() {
   `).join('');
 }
 
-onDataChange(renderAll);
-document.addEventListener('DOMContentLoaded', renderAll);
+document.addEventListener('DOMContentLoaded', () => {
+  renderAll();
+  onDataChange(renderAll);
+});

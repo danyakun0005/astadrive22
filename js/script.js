@@ -257,19 +257,20 @@ function initCursorGlow() {
   });
 }
 
+function _autoRefresh() {
+  const section = document.querySelector('.section--active');
+  if (section) {
+    const id = section.id;
+    if (id === 'catalog') renderCatalog();
+    else if (id === 'shop') renderShop();
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderCatalog();
   renderShop();
   initCursorGlow();
-
-  onDataChange(() => {
-    const section = document.querySelector('.section--active');
-    if (section) {
-      const id = section.id;
-      if (id === 'catalog') renderCatalog();
-      else if (id === 'shop') renderShop();
-    }
-  });
+  onDataChange(_autoRefresh);
 
   document.querySelectorAll('.phone-mask').forEach(el => {
     el.addEventListener('input', () => maskPhone(el));
