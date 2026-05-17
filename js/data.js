@@ -48,7 +48,7 @@ function getStore() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const data = JSON.parse(raw);
-      if (data && data.version === DATA_VERSION) return data;
+      if (data && typeof data === 'object') return data;
     }
   } catch (e) {}
   return null;
@@ -61,22 +61,25 @@ function saveStore(store) {
   } catch(e) {}
 }
 
+function _mergeStore(updates) {
+  try {
+    const store = getStore() || {};
+    Object.assign(store, updates);
+    saveStore(store);
+  } catch(e) {}
+}
+
 /* ========== BIKES ========== */
 function getBikes() {
   try {
     const store = getStore();
     if (store && store.bikes && store.bikes.length) return store.bikes;
   } catch(e) {}
-  try { saveStore({ version: DATA_VERSION, bikes: defaultBikes, shopItems: [], orders: [] }); } catch(e) {}
   return defaultBikes;
 }
 
 function saveBikes(bikes) {
-  try {
-    const store = getStore() || {};
-    store.bikes = bikes;
-    saveStore(store);
-  } catch(e) {}
+  _mergeStore({ bikes: bikes });
 }
 
 function getBikeById(id) { return getBikes().find(b => b.id === id); }
@@ -158,11 +161,7 @@ function getShopItems() {
 }
 
 function saveShopItems(items) {
-  try {
-    const store = getStore() || {};
-    store.shopItems = items;
-    saveStore(store);
-  } catch(e) {}
+  _mergeStore({ shopItems: items });
 }
 
 function getShopItemById(id) { return getShopItems().find(s => s.id === id); }
@@ -202,11 +201,7 @@ function getOrders() {
 }
 
 function saveOrders(orders) {
-  try {
-    const store = getStore() || {};
-    store.orders = orders;
-    saveStore(store);
-  } catch(e) {}
+  _mergeStore({ orders: orders });
 }
 
 function addOrder(order) {
