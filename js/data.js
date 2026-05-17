@@ -217,7 +217,7 @@ function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(fn => fn()); }
 
 try {
-  if (typeof firebase !== 'undefined') {
+  if (typeof firebase !== 'undefined' && firebase) {
     firebase.initializeApp({
       apiKey: "AIzaSyDnN7u-AqwyDMrHUZRHDkvYSWiwfFVY2bg",
       authDomain: "astadrive22.firebaseapp.com",
