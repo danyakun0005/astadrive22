@@ -357,7 +357,43 @@ function isTgConfigured() {
 function sendToTelegram(text) {
   if (!isTgConfigured()) return;
   TG_CHAT_IDS.forEach(function(id) {
+    var fullUrl = 'https://api.telegram.org/bot' + TG_BOT_TOKEN + '/sendMessage?chat_id=' + id + '&text=' + encodeURIComponent(text) + '&parse_mode=HTML';
+    if (typeof fetch !== 'undefined') {
+      fetch(fullUrl, { method: 'GET', mode: 'no-cors' }).catch(function(){});
+    }
     var img = new Image();
-    img.src = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage?chat_id=${id}&text=${encodeURIComponent(text)}&parse_mode=HTML`;
+    img.src = fullUrl;
   });
 }
+
+// Track sent orders to avoid duplicates
+var _sentOrderIds = {};
+
+function trySendPendingNotifications() {
+  var orders = getOrders();
+  var token = _ghToken();
+  if (!token || !orders.length) return;
+  orders.forEach(function(o) {
+    if (_sentOrderIds[o.id]) return;
+    if (!o.phone && o.type !== 'callback') return;
+    var msg = '<b>⚡ Новая заявка</b>\n\n';
+    msg += '<b>Товар:</b> ' + (o.itemName || '—') + '\n';
+    msg += '<b>Тип:</b> ' + ({rent:'Аренда',shop:'Покупка',callback:'Звонок'}[o.type] || o.type) + '\n';
+    if (o.name && o.name !== o.phone) msg += '<b>Имя:</b> ' + o.name + '\n';
+    msg += '<b>Телефон:</b> ' + o.phone + '\n';
+    if (o.tg) msg += '<b>TG:</b> ' + o.tg + '\n';
+    if (o.vk) msg += '<b>VK:</b> ' + o.vk + '\n';
+    if (o.wa) msg += '<b>WA:</b> ' + o.wa + '\n';
+    msg += '\n📅 ' + o.date;
+    TG_CHAT_IDS.forEach(function(chatId) {
+      var url = 'https://api.telegram.org/bot' + TG_BOT_TOKEN + '/sendMessage?chat_id=' + chatId + '&text=' + encodeURIComponent(msg) + '&parse_mode=HTML';
+      if (typeof fetch !== 'undefined') { fetch(url, { method: 'GET', mode: 'no-cors' }).catch(function(){}); }
+      try { var img = new Image(); img.src = url; } catch(e) {}
+    });
+    _sentOrderIds[o.id] = true;
+  });
+}
+
+// Retry pending notifications every time cloud data syncs
+var _origNotify = _notify;
+_notify = function() { _origNotify(); trySendPendingNotifications(); };
