@@ -263,19 +263,43 @@ function _ghGetAll() {
 }
 
 function _ghRead(file) {
-  var url = _GH_RAW + file + '?_=' + Date.now();
-  if (typeof fetch !== 'undefined') {
-    return fetch(url).then(function(r) { if (!r.ok) return null; return r.json().catch(function(){return null}); }).catch(function(){return null});
+  var urls = [
+    _GH_RAW + file + '?_=' + Date.now(),
+    'https://cdn.jsdelivr.net/gh/' + _GH_OWNER + '/' + _GH_REPO + '@main/' + file + '?_=' + Date.now(),
+    _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + file
+  ];
+  var token = _ghGetToken();
+  function tryUrl(idx) {
+    if (idx >= urls.length) return Promise.resolve(null);
+    var url = urls[idx];
+    var isApi = url.indexOf('api.github.com') > -1;
+    var headers = {};
+    if (isApi) {
+      headers['Accept'] = 'application/vnd.github.raw+json';
+      if (token) headers['Authorization'] = 'token ' + token;
+    }
+    if (typeof fetch !== 'undefined') {
+      return fetch(url, { headers: headers }).then(function(r) {
+        if (!r.ok) return tryUrl(idx + 1);
+        return r.text().then(function(t) { try { return JSON.parse(t); } catch(e) { return tryUrl(idx + 1); } });
+      }).catch(function(){ return tryUrl(idx + 1); });
+    }
+    return new Promise(function(resolve) {
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        if (isApi) xhr.setRequestHeader('Accept', 'application/vnd.github.raw+json');
+        if (isApi && token) xhr.setRequestHeader('Authorization', 'token ' + token);
+        xhr.onload = function() {
+          if (xhr.status === 200) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { tryUrl(idx+1).then(resolve); } }
+          else tryUrl(idx+1).then(resolve);
+        };
+        xhr.onerror = function() { tryUrl(idx+1).then(resolve); };
+        xhr.send();
+      } catch(e) { tryUrl(idx+1).then(resolve); }
+    });
   }
-  return new Promise(function(resolve) {
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', url, true);
-      xhr.onload = function() { if (xhr.status === 200) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); } } else resolve(null); };
-      xhr.onerror = function() { resolve(null); };
-      xhr.send();
-    } catch(e) { resolve(null); }
-  });
+  return tryUrl(0);
 }
 
 // Write ONE file using Git Blob API (no 1MB limit)
