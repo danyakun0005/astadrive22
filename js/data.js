@@ -370,8 +370,8 @@ function sendToTelegram(msg) {
   if (!isTgConfigured()) return;
   TG_CHAT_IDS.forEach(function(id) {
     var url = 'https://api.telegram.org/bot' + TG_BOT_TOKEN + '/sendMessage?chat_id=' + id + '&text=' + encodeURIComponent(msg) + '&parse_mode=HTML';
-    if (typeof fetch !== 'undefined') fetch(url, { method: 'GET', mode: 'no-cors' }).catch(function(){});
-    try { var img = new Image(); img.src = url; } catch(e) {}
+    var img = new Image();
+    img.src = url;
   });
 }
 
