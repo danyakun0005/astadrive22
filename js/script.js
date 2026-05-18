@@ -194,16 +194,6 @@ function submitBooking(e) {
     date: new Date().toLocaleString('ru-RU')
   };
   addOrder(orderData);
-  let tgMsg = `<b>⚡ ASTADRIVE22 — Новая заявка</b>\n\n`;
-  tgMsg += `<b>Тип:</b> ${type === 'rent' ? 'Аренда' : 'Покупка'}\n`;
-  tgMsg += `<b>Товар:</b> ${itemName}\n`;
-  tgMsg += `<b>Телефон:</b> ${phone}\n`;
-  if (tg) tgMsg += `<b>Telegram:</b> ${tg}\n`;
-  if (vk) tgMsg += `<b>VK:</b> ${vk}\n`;
-  if (wa) tgMsg += `<b>WhatsApp:</b> ${wa}\n`;
-  tgMsg += `\n📅 ${new Date().toLocaleString('ru-RU')}`;
-  sendToTelegram(tgMsg);
-
   document.getElementById('bookingForm').style.display = 'none';
   document.querySelector('.modal__btn').style.display = 'none';
   document.getElementById('modalSuccess').classList.add('show');
@@ -286,9 +276,6 @@ document.addEventListener('DOMContentLoaded', () => {
       date: new Date().toLocaleString('ru-RU')
     };
     addOrder(cbOrder);
-    const msg = `<b>⚡ ASTADRIVE22 — Обратный звонок</b>\n\n<b>Телефон:</b> ${phone}\n\n📅 ${new Date().toLocaleString('ru-RU')}`;
-    sendToTelegram(msg);
-
     document.getElementById('formSuccess').classList.add('show');
     input.value = '';
   });
