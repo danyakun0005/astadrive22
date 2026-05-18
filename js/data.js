@@ -276,18 +276,49 @@ function _ghRead(file) {
   });
 }
 
-// Write ONE file to GitHub
+// Write ONE file using Git Blob API (no 1MB limit)
 function _ghWrite(file, data) {
   var token = _ghGetToken();
-  if (!token) return null;
-  var url = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + file;
-  return _ghGetSha(url, token).then(function(sha) {
-    var content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-    var body = JSON.stringify({ message: 'sync', content: content, sha: sha || undefined });
-    return _ghFetch(url, 'PUT', body, token).then(function(r) { return r && r.content; });
-  });
+  if (!token) return false;
+  var content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  var api = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO;
+  var ref = 'heads/main';
+  // 1) Get latest commit
+  return _ghFetch(api + '/git/refs/' + ref, 'GET', null, token).then(function(r) {
+    if (!r || !r.object) return null;
+    var commitSha = r.object.sha;
+    // 2) Get commit to find tree
+    return _ghFetch(api + '/git/commits/' + commitSha, 'GET', null, token).then(function(c) {
+      if (!c || !c.tree) return null;
+      var treeSha = c.tree.sha;
+      // 3) Create blob with content (up to 100MB)
+      return _ghFetch(api + '/git/blobs', 'POST', JSON.stringify({ content: content, encoding: 'base64' }), token).then(function(b) {
+        if (!b || !b.sha) return null;
+        var blobSha = b.sha;
+        // 4) Create new tree with updated file
+        return _ghFetch(api + '/git/trees', 'POST', JSON.stringify({
+          base_tree: treeSha,
+          tree: [{ path: file, mode: '100644', type: 'blob', sha: blobSha }]
+        }), token).then(function(t) {
+          if (!t || !t.sha) return null;
+          var newTreeSha = t.sha;
+          // 5) Create commit with parent
+          return _ghFetch(api + '/git/commits', 'POST', JSON.stringify({
+            message: 'sync',
+            tree: newTreeSha,
+            parents: [commitSha]
+          }), token).then(function(cm) {
+            if (!cm || !cm.sha) return null;
+            // 6) Update branch ref
+            return _ghFetch(api + '/git/refs/' + ref, 'PATCH', JSON.stringify({ sha: cm.sha, force: false }), token);
+          });
+        });
+      });
+    });
+  }).then(function(r) { return r !== null; });
 }
 
+// For Content API (small files < 1MB) - used only for reading
 function _ghGetSha(url, token) {
   return _ghFetch(url, 'GET', null, token).then(function(r) { return r && r.sha ? r.sha : null; });
 }
