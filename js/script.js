@@ -194,8 +194,6 @@ function submitBooking(e) {
     date: new Date().toLocaleString('ru-RU')
   };
   addOrder(orderData);
-  try { fetch('https://astadrive22-orders.danyakun27.workers.dev', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(orderData) }).catch(function(){}); } catch(e){}
-
   let tgMsg = `<b>⚡ ASTADRIVE22 — Новая заявка</b>\n\n`;
   tgMsg += `<b>Тип:</b> ${type === 'rent' ? 'Аренда' : 'Покупка'}\n`;
   tgMsg += `<b>Товар:</b> ${itemName}\n`;
@@ -288,8 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
       date: new Date().toLocaleString('ru-RU')
     };
     addOrder(cbOrder);
-    try { fetch('https://astadrive22-orders.danyakun27.workers.dev', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cbOrder) }).catch(function(){}); } catch(e){}
-
     const msg = `<b>⚡ ASTADRIVE22 — Обратный звонок</b>\n\n<b>Телефон:</b> ${phone}\n\n📅 ${new Date().toLocaleString('ru-RU')}`;
     sendToTelegram(msg);
 
