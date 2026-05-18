@@ -366,10 +366,24 @@ function isTgConfigured() {
   return TG_BOT_TOKEN && TG_BOT_TOKEN !== 'YOUR_BOT_TOKEN';
 }
 
-// Send Telegram for new orders only (tracked via `notified` flag saved to order)
+// Send Telegram for new orders only (tracked in separate storage to survive GitHub sync)
+var _NOTIFIED_KEY = STORAGE_KEY + '_notified';
+
+function _getNotified() {
+  try { return JSON.parse(localStorage.getItem(_NOTIFIED_KEY)) || []; } catch(e) { return []; }
+}
+
+function _markNotified(id) {
+  try {
+    var arr = _getNotified();
+    if (arr.indexOf(id) === -1) { arr.push(id); localStorage.setItem(_NOTIFIED_KEY, JSON.stringify(arr)); }
+  } catch(e) {}
+}
+
 function _sendPendingTg() {
   if (!isTgConfigured()) return;
-  var orders = getOrders().filter(function(o) { return !o.notified && o.phone && o.id; });
+  var notified = _getNotified();
+  var orders = getOrders().filter(function(o) { return notified.indexOf(o.id) === -1 && o.phone && o.id; });
   if (!orders.length) return;
   orders.forEach(function(o) {
     var msg = '<b>⚡ Новая заявка</b>\n\n';
@@ -386,7 +400,6 @@ function _sendPendingTg() {
       if (typeof fetch !== 'undefined') { fetch(url, { method: 'GET', mode: 'no-cors' }).catch(function(){}); }
       try { var img = new Image(); img.src = url; } catch(e) {}
     });
-    o.notified = true;
-    _mergeStore({ orders: getOrders() });
+    _markNotified(o.id);
   });
 }
