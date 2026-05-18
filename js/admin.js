@@ -316,8 +316,7 @@ function saveGhToken() {
   try {
     localStorage.setItem('astadrive22_gh_token', token);
     document.getElementById('tokenStatus').textContent = '✅ Токен сохранён! (только в этом браузере)';
-    // Test write
-    _ghPut({}).then(function() { updateSyncStatus(); });
+    _ghWrite(_GH_FILES.bikes, getBikes()).then(function(r) { updateSyncStatus(); });
   } catch(e) {
     document.getElementById('tokenStatus').textContent = '❌ Ошибка сохранения';
   }
@@ -370,8 +369,9 @@ function importData(e) {
       if (data.orders) store.orders = data.orders;
       if (data.version) store.version = data.version;
       saveStore(store);
-      // Also push to Firebase if available
-      if (data.bikes || data.shopItems || data.orders) try { _ghPut(data); } catch(ex) {}
+      if (data.bikes) try { _ghWrite(_GH_FILES.bikes, data.bikes); } catch(ex) {}
+      if (data.shopItems) try { _ghWrite(_GH_FILES.shopItems, data.shopItems); } catch(ex) {}
+      if (data.orders) try { _ghWrite(_GH_FILES.orders, data.orders); } catch(ex) {}
       renderAll();
       alert('✅ Данные импортированы!');
     } catch(err) { alert('Ошибка импорта: ' + err.message); }

@@ -227,8 +227,7 @@ function _ghToken() { try { return localStorage.getItem('astadrive22_gh_token') 
 
 const _GH_OWNER = 'danyakun0005';
 const _GH_REPO = 'astadrive22';
-const _GH_PATH = 'db.json';
-const _GH_RAW = 'https://raw.githubusercontent.com/' + _GH_OWNER + '/' + _GH_REPO + '/main/' + _GH_PATH;
+const _GH_RAW = 'https://raw.githubusercontent.com/' + _GH_OWNER + '/' + _GH_REPO + '/main/';
 const _GH_API = 'https://api.github.com';
 // Embedded token (obfuscated to avoid GitHub push protection)
 var _GH_TOKEN = '';
@@ -240,71 +239,69 @@ try {
 } catch(e){}
 
 let _ghReady = false;
-let _ghSha = null;
 const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
 var _origNotify = _notify;
 _notify = function() { _origNotify(); };
 
-// Read from raw.githubusercontent.com — no token needed (works on all devices)
-function _ghGet() {
+function _ghToken() { try { return localStorage.getItem('astadrive22_gh_token') || ''; } catch(e) { return ''; } }
+function _ghGetToken() { return _ghToken() || _GH_TOKEN; }
+
+// File names for separate data parts (smaller = faster writes)
+var _GH_FILES = { bikes: 'db_bikes.json', shopItems: 'db_shop.json', orders: 'db_orders.json' };
+
+// Read ALL cloud files and merge into one object
+function _ghGetAll() {
+  var keys = ['bikes', 'shopItems', 'orders'];
+  var result = {};
+  var chain = Promise.resolve();
+  keys.forEach(function(k) {
+    chain = chain.then(function() {
+      return _ghRead(_GH_FILES[k]).then(function(d) { if (d !== null) result[k] = d; });
+    });
+  });
+  return chain.then(function() { return result; });
+}
+
+function _ghRead(file) {
+  var url = _GH_RAW + file + '?_=' + Date.now();
   if (typeof fetch !== 'undefined') {
-    return fetch(_GH_RAW + '?_=' + Date.now()).then(function(r) {
-      if (!r.ok) return null;
-      return r.json().catch(function(){return null});
-    }).catch(function(){return null});
+    return fetch(url).then(function(r) { if (!r.ok) return null; return r.json().catch(function(){return null}); }).catch(function(){return null});
   }
   return new Promise(function(resolve) {
     try {
       var xhr = new XMLHttpRequest();
-      xhr.open('GET', _GH_RAW + '?_=' + Date.now(), true);
-      xhr.onload = function() {
-        if (xhr.status === 200) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); } }
-        else resolve(null);
-      };
+      xhr.open('GET', url, true);
+      xhr.onload = function() { if (xhr.status === 200) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); } } else resolve(null); };
       xhr.onerror = function() { resolve(null); };
       xhr.send();
     } catch(e) { resolve(null); }
   });
 }
 
-// Write via API — uses embedded token (all visitors) or admin override from localStorage
-function _ghGetToken() { return _ghToken() || _GH_TOKEN; }
-
-function _ghPut(data) {
+// Write ONE file to GitHub
+function _ghWrite(file, data) {
   var token = _ghGetToken();
-  if (!token) return;
-  var url = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + _GH_PATH;
-  // Get SHA then write
-  var promise = _ghSha ? Promise.resolve(_ghSha) : _ghGetSha(token).then(function(sha){ _ghSha = sha; return sha; });
-  return promise.then(function(sha) {
+  if (!token) return null;
+  var url = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + file;
+  return _ghGetSha(url, token).then(function(sha) {
     var content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-    var body = JSON.stringify({ message: 'sync update', content: content, sha: sha || undefined });
-    return _ghFetch(url, 'PUT', body, token).then(function(r) {
-      if (r && r.content) _ghSha = r.content.sha;
-    }).catch(function(){});
+    var body = JSON.stringify({ message: 'sync', content: content, sha: sha || undefined });
+    return _ghFetch(url, 'PUT', body, token).then(function(r) { return r && r.content; });
   });
 }
 
-function _ghGetSha(token) {
-  var url = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + _GH_PATH;
-  return _ghFetch(url, 'GET', null, token).then(function(r) {
-    if (r && r.sha) return r.sha;
-    return null;
-  });
+function _ghGetSha(url, token) {
+  return _ghFetch(url, 'GET', null, token).then(function(r) { return r && r.sha ? r.sha : null; });
 }
 
 function _ghFetch(url, method, body, token) {
   var headers = { 'Accept': 'application/vnd.github+json' };
   if (token) headers['Authorization'] = 'token ' + token;
   if (typeof fetch !== 'undefined') {
-    return fetch(url, {
-      method: method || 'GET',
-      headers: headers,
-      body: body || undefined
-    }).then(function(r) {
-      if (!r.ok) { console.warn('GH fail:', r.status); return null; }
+    return fetch(url, { method: method || 'GET', headers: headers, body: body || undefined }).then(function(r) {
+      if (!r.ok) { console.warn('GH fail:', r.status, url.split('/').pop()); return null; }
       return r.json().catch(function(){return null});
     }).catch(function(e){ console.warn('GH err:', e); return null; });
   }
@@ -314,31 +311,26 @@ function _ghFetch(url, method, body, token) {
       xhr.open(method || 'GET', url, true);
       if (token) xhr.setRequestHeader('Authorization', 'token ' + token);
       xhr.setRequestHeader('Accept', 'application/vnd.github+json');
-      xhr.onload = function() {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); }
-        } else { resolve(null); }
-      };
+      xhr.onload = function() { if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); } } else resolve(null); };
       xhr.onerror = function() { resolve(null); };
       xhr.send(body || null);
     } catch(e) { resolve(null); }
   });
 }
 
-// Override saves — always save to GitHub AND notify/Telegram immediately
+// Override saves — write ONLY changed file to GitHub (smaller, faster)
 var _origSaveBikes = saveBikes;
-saveBikes = function(b) { _origSaveBikes(b); try { _ghPut({ bikes: b, shopItems: getShopItems(), orders: getOrders() }); } catch(e){} _notify(); };
+saveBikes = function(b) { _origSaveBikes(b); _ghWrite(_GH_FILES.bikes, b); _notify(); };
 var _origSaveShop = saveShopItems;
-saveShopItems = function(s) { _origSaveShop(s); try { _ghPut({ bikes: getBikes(), shopItems: s, orders: getOrders() }); } catch(e){} _notify(); };
+saveShopItems = function(s) { _origSaveShop(s); _ghWrite(_GH_FILES.shopItems, s); _notify(); };
 var _origSaveOrders = saveOrders;
-saveOrders = function(o) { _origSaveOrders(o); try { _ghPut({ bikes: getBikes(), shopItems: getShopItems(), orders: o }); } catch(e){} _notify(); };
+saveOrders = function(o) { _origSaveOrders(o); _ghWrite(_GH_FILES.orders, o); _notify(); };
 
-// Pull cloud data into localStorage (no token needed)
-_ghGet().then(function(data) {
-  if (!data) return;
-  if (data.bikes && data.bikes.length) { _origSaveBikes(data.bikes); }
-  if (data.shopItems && data.shopItems.length) { _origSaveShop(data.shopItems); }
-  if (data.orders && data.orders.length) { _origSaveOrders(data.orders); }
+// Pull ALL cloud files into localStorage on page load
+_ghGetAll().then(function(data) {
+  if (data.bikes && data.bikes.length) _origSaveBikes(data.bikes);
+  if (data.shopItems && data.shopItems.length) _origSaveShop(data.shopItems);
+  if (data.orders && data.orders.length) _origSaveOrders(data.orders);
   _ghReady = true;
   _notify();
 });
