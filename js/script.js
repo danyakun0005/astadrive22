@@ -194,6 +194,8 @@ function submitBooking(e) {
     date: new Date().toLocaleString('ru-RU')
   };
   addOrder(orderData);
+  var tgMsg = '<b>⚡ Новая заявка</b>\n\n<b>Тип:</b> ' + (type === 'rent' ? 'Аренда' : 'Покупка') + '\n<b>Товар:</b> ' + itemName + '\n<b>Телефон:</b> ' + phone + (tg ? '\n<b>TG:</b> ' + tg : '') + (vk ? '\n<b>VK:</b> ' + vk : '') + (wa ? '\n<b>WA:</b> ' + wa : '') + '\n\n📅 ' + new Date().toLocaleString('ru-RU');
+  sendTgOnce(tgMsg, 'booking_' + Date.now());
   document.getElementById('bookingForm').style.display = 'none';
   document.querySelector('.modal__btn').style.display = 'none';
   document.getElementById('modalSuccess').classList.add('show');
@@ -276,6 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
       date: new Date().toLocaleString('ru-RU')
     };
     addOrder(cbOrder);
+    sendTgOnce('<b>⚡ ASTADRIVE22 — Обратный звонок</b>\n\n<b>Телефон:</b> ' + phone + '\n\n📅 ' + new Date().toLocaleString('ru-RU'), 'callback_' + Date.now());
     document.getElementById('formSuccess').classList.add('show');
     input.value = '';
   });

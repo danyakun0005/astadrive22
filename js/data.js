@@ -245,7 +245,7 @@ const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
 var _origNotify = _notify;
-_notify = function() { _origNotify(); _sendPendingTg(); };
+_notify = function() { _origNotify(); };
 
 // Read from raw.githubusercontent.com — no token needed (works on all devices)
 function _ghGet() {
@@ -366,40 +366,20 @@ function isTgConfigured() {
   return TG_BOT_TOKEN && TG_BOT_TOKEN !== 'YOUR_BOT_TOKEN';
 }
 
-// Send Telegram for new orders only (tracked in separate storage to survive GitHub sync)
-var _NOTIFIED_KEY = STORAGE_KEY + '_notified';
-
-function _getNotified() {
-  try { return JSON.parse(localStorage.getItem(_NOTIFIED_KEY)) || []; } catch(e) { return []; }
-}
-
-function _markNotified(id) {
-  try {
-    var arr = _getNotified();
-    if (arr.indexOf(id) === -1) { arr.push(id); localStorage.setItem(_NOTIFIED_KEY, JSON.stringify(arr)); }
-  } catch(e) {}
-}
-
-function _sendPendingTg() {
+function sendToTelegram(msg) {
   if (!isTgConfigured()) return;
-  var notified = _getNotified();
-  var orders = getOrders().filter(function(o) { return notified.indexOf(o.id) === -1 && o.phone && o.id; });
-  if (!orders.length) return;
-  orders.forEach(function(o) {
-    var msg = '<b>⚡ Новая заявка</b>\n\n';
-    msg += '<b>Товар:</b> ' + (o.itemName || '—') + '\n';
-    msg += '<b>Тип:</b> ' + ({rent:'Аренда',shop:'Покупка',callback:'Звонок'}[o.type] || o.type) + '\n';
-    if (o.name && o.name !== o.phone) msg += '<b>Имя:</b> ' + o.name + '\n';
-    msg += '<b>Телефон:</b> ' + o.phone + '\n';
-    if (o.tg) msg += '<b>TG:</b> ' + o.tg + '\n';
-    if (o.vk) msg += '<b>VK:</b> ' + o.vk + '\n';
-    if (o.wa) msg += '<b>WA:</b> ' + o.wa + '\n';
-    msg += '\n📅 ' + o.date;
-    TG_CHAT_IDS.forEach(function(chatId) {
-      var url = 'https://api.telegram.org/bot' + TG_BOT_TOKEN + '/sendMessage?chat_id=' + chatId + '&text=' + encodeURIComponent(msg) + '&parse_mode=HTML';
-      if (typeof fetch !== 'undefined') { fetch(url, { method: 'GET', mode: 'no-cors' }).catch(function(){}); }
-      try { var img = new Image(); img.src = url; } catch(e) {}
-    });
-    _markNotified(o.id);
+  TG_CHAT_IDS.forEach(function(id) {
+    var url = 'https://api.telegram.org/bot' + TG_BOT_TOKEN + '/sendMessage?chat_id=' + id + '&text=' + encodeURIComponent(msg) + '&parse_mode=HTML';
+    if (typeof fetch !== 'undefined') fetch(url, { method: 'GET', mode: 'no-cors' }).catch(function(){});
+    try { var img = new Image(); img.src = url; } catch(e) {}
   });
+}
+
+// Deduplicate Telegram sends per page session
+var _tgSent = {};
+
+function sendTgOnce(msg, key) {
+  if (_tgSent[key]) return;
+  _tgSent[key] = true;
+  sendToTelegram(msg);
 }
