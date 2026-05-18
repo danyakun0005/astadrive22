@@ -325,13 +325,13 @@ function _ghFetch(url, method, body, token) {
   });
 }
 
-// Override saves — push to GitHub on every change, then notify + send Telegram
+// Override saves — always save to GitHub AND notify/Telegram immediately
 var _origSaveBikes = saveBikes;
-saveBikes = function(b) { _origSaveBikes(b); try { _ghPut({ bikes: b, shopItems: getShopItems(), orders: getOrders() }).then(_notify); } catch(e){} };
+saveBikes = function(b) { _origSaveBikes(b); try { _ghPut({ bikes: b, shopItems: getShopItems(), orders: getOrders() }); } catch(e){} _notify(); };
 var _origSaveShop = saveShopItems;
-saveShopItems = function(s) { _origSaveShop(s); try { _ghPut({ bikes: getBikes(), shopItems: s, orders: getOrders() }).then(_notify); } catch(e){} };
+saveShopItems = function(s) { _origSaveShop(s); try { _ghPut({ bikes: getBikes(), shopItems: s, orders: getOrders() }); } catch(e){} _notify(); };
 var _origSaveOrders = saveOrders;
-saveOrders = function(o) { _origSaveOrders(o); try { _ghPut({ bikes: getBikes(), shopItems: getShopItems(), orders: o }).then(_notify); } catch(e){} };
+saveOrders = function(o) { _origSaveOrders(o); try { _ghPut({ bikes: getBikes(), shopItems: getShopItems(), orders: o }); } catch(e){} _notify(); };
 
 // Pull cloud data into localStorage (no token needed)
 _ghGet().then(function(data) {
