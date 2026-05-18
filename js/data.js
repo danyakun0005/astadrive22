@@ -90,6 +90,7 @@ function addBike(bike) {
   bike.earnings = bike.earnings || [];
   bike.image = bike.image || '';
   bike.pricing = bike.pricing || { day: 0, week: 0, month: 0 };
+  bike.specs = bike.specs || {};
   bikes.push(bike);
   saveBikes(bikes);
   return bike;
@@ -222,8 +223,8 @@ function deleteOrder(id) {
 }
 
 /* ========== GITHUB CLOUD SYNC ========== */
-// Token stored in localStorage (set once in admin settings)
 function _ghToken() { try { return localStorage.getItem('astadrive22_gh_token') || ''; } catch(e) { return ''; } }
+function _ghGetToken() { return _ghToken() || _GH_TOKEN; }
 
 const _GH_OWNER = 'danyakun0005';
 const _GH_REPO = 'astadrive22';
@@ -242,11 +243,6 @@ let _ghReady = false;
 const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
-var _origNotify = _notify;
-_notify = function() { _origNotify(); };
-
-function _ghToken() { try { return localStorage.getItem('astadrive22_gh_token') || ''; } catch(e) { return ''; } }
-function _ghGetToken() { return _ghToken() || _GH_TOKEN; }
 
 // File names for separate data parts (smaller = faster writes)
 var _GH_FILES = { bikes: 'db_bikes.json', shopItems: 'db_shop.json', orders: 'db_orders.json' };
@@ -318,19 +314,29 @@ function _ghFetch(url, method, body, token) {
   });
 }
 
-// Override saves — write ONLY changed file to GitHub (smaller, faster)
+// Override saves — always save locally first, try GitHub in background
 var _origSaveBikes = saveBikes;
-saveBikes = function(b) { _origSaveBikes(b); _ghWrite(_GH_FILES.bikes, b); _notify(); };
+saveBikes = function(b) { try { _origSaveBikes(b); _ghWrite(_GH_FILES.bikes, b); } catch(e){} _notify(); };
 var _origSaveShop = saveShopItems;
-saveShopItems = function(s) { _origSaveShop(s); _ghWrite(_GH_FILES.shopItems, s); _notify(); };
+saveShopItems = function(s) { try { _origSaveShop(s); _ghWrite(_GH_FILES.shopItems, s); } catch(e){} _notify(); };
 var _origSaveOrders = saveOrders;
-saveOrders = function(o) { _origSaveOrders(o); _ghWrite(_GH_FILES.orders, o); _notify(); };
+saveOrders = function(o) { try { _origSaveOrders(o); _ghWrite(_GH_FILES.orders, o); } catch(e){} _notify(); };
 
-// Pull ALL cloud files into localStorage on page load
+// On page load: load from GitHub ONLY if localStorage is empty (first visit)
+// Never overwrite local changes — they are the source of truth
 _ghGetAll().then(function(data) {
-  if (data.bikes && data.bikes.length) _origSaveBikes(data.bikes);
-  if (data.shopItems && data.shopItems.length) _origSaveShop(data.shopItems);
-  if (data.orders && data.orders.length) _origSaveOrders(data.orders);
+  if (!data) return;
+  var store = getStore();
+  // Only seed from GitHub if local is empty or has fewer bikes
+  if (!store || !store.bikes || !store.bikes.length) {
+    if (data.bikes && data.bikes.length) _origSaveBikes(data.bikes);
+  }
+  if (!store || !store.shopItems || !store.shopItems.length) {
+    if (data.shopItems && data.shopItems.length) _origSaveShop(data.shopItems);
+  }
+  if (!store || !store.orders || !store.orders.length) {
+    if (data.orders && data.orders.length) _origSaveOrders(data.orders);
+  }
   _ghReady = true;
   _notify();
 });

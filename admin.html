@@ -135,7 +135,16 @@
     </main>
   </div>
 
-<script src="js/data.js?v=3"></script>
-<script src="js/admin.js?v=3"></script>
+<div id="adminDebug" style="position:fixed;bottom:0;left:0;right:0;background:#111;color:#ff4444;font:12px monospace;padding:8px;max-height:100px;overflow:auto;z-index:99999;display:none">Ошибок нет</div>
+<script>
+window.onerror = function(msg, url, line) {
+  var el = document.getElementById('adminDebug');
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = '❌ ' + msg + ' (' + line + ')<br>' + el.innerHTML;
+};
+</script>
+<script src="js/data.js?v=4"></script>
+<script src="js/admin.js?v=4"></script>
 </body>
 </html>

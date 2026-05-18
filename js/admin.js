@@ -64,79 +64,77 @@ function renderRent() {
 }
 
 function renderBikeCard(item, mode) {
-  const isRent = mode === 'rent';
-  const earnings = totalEarnings(item);
-  const monthEarn = monthlyEarnings(item);
-  const p = item.pricing || {};
-  const statusClass = item.inStock ? 'available' : 'rented';
-  const statusText = item.inStock ? 'В наличии' : 'В аренде';
-  const bikeImg = item.image || '';
+  try {
+  var isRent = mode === 'rent';
+  var earnings = totalEarnings(item);
+  var monthEarn = monthlyEarnings(item);
+  var p = item.pricing || {};
+  var statusClass = item.inStock ? 'available' : 'rented';
+  var statusText = item.inStock ? 'В наличии' : 'В аренде';
+  var bikeImg = item.image || '';
+  var name = item.name || 'Без названия';
+  var id = item.id || 0;
 
-  const adminEmoji = { "Мощность":"⚡", "Скорость":"🚀", "Нагрузка":"🏋️", "Ёмкость АКБ":"🔋" };
-  const specsRows = Object.entries(item.specs).map(([label, value]) =>
-    `<div class="admin-bike__spec"><span class="admin-bike__spec-label">${adminEmoji[label]||''} ${label}</span><span class="admin-bike__spec-value">${value}</span></div>`
-  ).join('');
+  var adminEmoji = { "Мощность":"⚡", "Скорость":"🚀", "Нагрузка":"🏋️", "Ёмкость АКБ":"🔋" };
+  var specs = item.specs || {};
+  var specsRows = Object.keys(specs).map(function(k) {
+    var emoji = adminEmoji[k] || '';
+    var val = specs[k] || '—';
+    return '<div class="admin-bike__spec"><span class="admin-bike__spec-label">'+emoji+' '+k+'</span><span class="admin-bike__spec-value">'+val+'</span></div>';
+  }).join('');
 
-  const historyHtml = (item.earnings || []).slice().reverse().map(e =>
-    `<div class="admin-bike__history-item"><span>💵 +${formatCurrency(e.amount)}</span><span>📅 ${e.date}</span></div>`
-  ).join('') || '<div class="admin-bike__history-empty">Нет записей</div>';
+  var earningsArr = item.earnings || [];
+  var historyHtml = earningsArr.slice().reverse().map(function(e) {
+    return '<div class="admin-bike__history-item"><span>💵 +'+formatCurrency(e.amount)+'</span><span>📅 '+(e.date||'')+'</span></div>';
+  }).join('');
+  if (!historyHtml) historyHtml = '<div class="admin-bike__history-empty">Нет записей</div>';
 
-  const pricingHtml = isRent ? `
-    <div class="admin-bike__pricing">
-      <div class="admin-bike__pricing-title">💰 Прайс аренды</div>
-      <div class="admin-bike__pricing-grid">
-        <div class="admin-bike__price-item"><span class="admin-bike__price-label">📅 День</span><span class="admin-bike__price-value">${formatCurrency(p.day || 0)}</span></div>
-        <div class="admin-bike__price-item"><span class="admin-bike__price-label">📅 Неделя</span><span class="admin-bike__price-value">${formatCurrency(p.week || 0)}</span></div>
-        <div class="admin-bike__price-item"><span class="admin-bike__price-label">📅 Месяц</span><span class="admin-bike__price-value">${formatCurrency(p.month || 0)}</span></div>
-      </div>
-    </div>` : '';
+  var pricingHtml = '';
+  if (isRent) {
+    pricingHtml = '<div class="admin-bike__pricing"><div class="admin-bike__pricing-title">💰 Прайс аренды</div><div class="admin-bike__pricing-grid">' +
+      '<div class="admin-bike__price-item"><span class="admin-bike__price-label">📅 День</span><span class="admin-bike__price-value">'+formatCurrency(p.day||0)+'</span></div>' +
+      '<div class="admin-bike__price-item"><span class="admin-bike__price-label">📅 Неделя</span><span class="admin-bike__price-value">'+formatCurrency(p.week||0)+'</span></div>' +
+      '<div class="admin-bike__price-item"><span class="admin-bike__price-label">📅 Месяц</span><span class="admin-bike__price-value">'+formatCurrency(p.month||0)+'</span></div>' +
+      '</div></div>';
+  }
 
-  const shopPricing = !isRent ? `
-    <div class="admin-bike__pricing">
-      <div class="admin-bike__pricing-title">🏷️ Цена продажи</div>
-      <div class="admin-bike__pricing-grid" style="grid-template-columns:1fr;max-width:160px">
-        <div class="admin-bike__price-item"><span class="admin-bike__price-label">💵 Цена</span><span class="admin-bike__price-value">${formatCurrency(item.price || 0)}</span></div>
-      </div>
-    </div>` : '';
+  var shopPricing = '';
+  if (!isRent) {
+    shopPricing = '<div class="admin-bike__pricing"><div class="admin-bike__pricing-title">🏷️ Цена продажи</div><div class="admin-bike__pricing-grid" style="grid-template-columns:1fr;max-width:160px">' +
+      '<div class="admin-bike__price-item"><span class="admin-bike__price-label">💵 Цена</span><span class="admin-bike__price-value">'+formatCurrency(item.price||0)+'</span></div>' +
+      '</div></div>';
+  }
 
-  const descHtml = !isRent && item.description ? `<div class="admin-bike__desc">📝 ${item.description}</div>` : '';
+  var descHtml = '';
+  if (!isRent && item.description) descHtml = '<div class="admin-bike__desc">📝 '+item.description+'</div>';
 
-  return `
-    <div class="admin-bike">
-      <div class="admin-bike__header">
-        <span class="admin-bike__name">${item.name}</span>
-        <button class="admin-bike__status-toggle ${statusClass}" onclick="${isRent ? `toggleStatus(${item.id})` : `toggleShopStatus(${item.id})`}">${statusText}</button>
-      </div>
-      <div class="admin-bike__body">
-        <div class="admin-bike__left">
-          <div class="admin-bike__photo" onclick="setBikePhoto(${item.id},'${mode}')">
-            ${bikeImg ? `<img src="${bikeImg}" alt="${item.name}">` : '<span class="admin-bike__photo-placeholder">+ фото</span>'}
-          </div>
-          <div class="admin-bike__specs">${specsRows}</div>
-          ${descHtml}
-        </div>
-        <div>
-          ${pricingHtml}
-          ${shopPricing}
-          ${isRent ? `
-          <div class="admin-bike__earnings">
-            <div class="admin-bike__earnings-title">📊 Прибыль</div>
-            <div class="admin-bike__earnings-month">📅 За месяц: <strong>${formatCurrency(monthEarn)}</strong></div>
-            <div class="admin-bike__earnings-total">${formatCurrency(earnings)}</div>
-            <div class="admin-bike__earnings-add">
-              <input type="number" id="earnInput${item.id}" placeholder="Сумма" min="0">
-              <button onclick="addEarningHandler(${item.id})">+ Добавить</button>
-            </div>
-            <div class="admin-bike__history">${historyHtml}</div>
-          </div>` : ''}
-        </div>
-      </div>
-      <div class="admin-bike__actions">
-        <button class="admin-bike__reset" onclick="${isRent ? `resetEarningsHandler(${item.id})` : `''`}" ${isRent ? '' : 'style="opacity:0.3;pointer-events:none"'}>🔄 Сбросить прибыль</button>
-        <button class="admin-bike__delete" onclick="${isRent ? `deleteBikeHandler(${item.id})` : `deleteShopHandler(${item.id})`}">🗑 Удалить</button>
-      </div>
-    </div>
-  `;
+  var toggleOnclick = isRent ? "toggleStatus("+id+")" : "toggleShopStatus("+id+")";
+  var photoOnclick = "setBikePhoto("+id+",'"+mode+"')";
+  var resetOnclick = isRent ? "resetEarningsHandler("+id+")" : "";
+  var deleteOnclick = isRent ? "deleteBikeHandler("+id+")" : "deleteShopHandler("+id+")";
+  var addEarnOnclick = "addEarningHandler("+id+")";
+  var resetStyle = isRent ? "" : ' style="opacity:0.3;pointer-events:none"';
+  var photoHtml = bikeImg ? '<img src="'+bikeImg+'" alt="'+name+'">' : '<span class="admin-bike__photo-placeholder">+ фото</span>';
+  var earnSection = '';
+  if (isRent) {
+    earnSection = '<div class="admin-bike__earnings"><div class="admin-bike__earnings-title">📊 Прибыль</div>' +
+      '<div class="admin-bike__earnings-month">📅 За месяц: <strong>'+formatCurrency(monthEarn)+'</strong></div>' +
+      '<div class="admin-bike__earnings-total">'+formatCurrency(earnings)+'</div>' +
+      '<div class="admin-bike__earnings-add"><input type="number" id="earnInput'+id+'" placeholder="Сумма" min="0"><button onclick="'+addEarnOnclick+'">+ Добавить</button></div>' +
+      '<div class="admin-bike__history">'+historyHtml+'</div></div>';
+  }
+
+  return '<div class="admin-bike">' +
+    '<div class="admin-bike__header"><span class="admin-bike__name">'+name+'</span>' +
+    '<button class="admin-bike__status-toggle '+statusClass+'" onclick="'+toggleOnclick+'">'+statusText+'</button></div>' +
+    '<div class="admin-bike__body"><div class="admin-bike__left">' +
+    '<div class="admin-bike__photo" onclick="'+photoOnclick+'">'+photoHtml+'</div>' +
+    '<div class="admin-bike__specs">'+specsRows+'</div>'+descHtml+'</div><div>' +
+    pricingHtml+shopPricing+earnSection+'</div></div>' +
+    '<div class="admin-bike__actions">' +
+    '<button class="admin-bike__reset" onclick="'+resetOnclick+'"'+resetStyle+'>🔄 Сбросить прибыль</button>' +
+    '<button class="admin-bike__delete" onclick="'+deleteOnclick+'">🗑 Удалить</button></div></div>';
+  } catch(e) { console.error('renderBikeCard err', e); return '<div style="color:red;padding:10px">Ошибка: '+e.message+'</div>'; }
 }
 
 function toggleStatus(id) { const b = getBikeById(id); if (b) { updateBike(id, { inStock: !b.inStock }); renderRent(); } }
@@ -328,7 +326,8 @@ function updateSyncStatus() {
   var token = _ghToken();
   if (!token) { el.innerHTML = '❌ Токен не настроен. Вставь токен выше.'; return; }
   el.innerHTML = '⏳ Проверка токена...';
-  _ghGetSha(token).then(function(sha) {
+  var url = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + _GH_FILES.bikes;
+  _ghGetSha(url, token).then(function(sha) {
     if (sha) el.innerHTML = '✅ Токен работает! Данные синхронизируются.';
     else el.innerHTML = '❌ Токен недействителен. Проверь права (нужно repo).';
   });
