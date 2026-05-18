@@ -243,6 +243,8 @@ let _ghReady = false;
 const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
+var _syncCallbacks = [];
+function onSync(fn) { _syncCallbacks.push(fn); }
 
 // File names for separate data parts (smaller = faster writes)
 var _GH_FILES = { bikes: 'db_bikes.json', shopItems: 'db_shop.json', orders: 'db_orders.json' };
@@ -315,7 +317,11 @@ function _ghWrite(file, data) {
         });
       });
     });
-  }).then(function(r) { return r !== null; });
+  }).then(function(r) {
+    var ok = r !== null;
+    _syncCallbacks.forEach(function(fn) { try { fn(ok); } catch(e) {} });
+    return ok;
+  });
 }
 
 // For Content API (small files < 1MB) - used only for reading
@@ -326,11 +332,12 @@ function _ghGetSha(url, token) {
 function _ghFetch(url, method, body, token) {
   var headers = { 'Accept': 'application/vnd.github+json' };
   if (token) headers['Authorization'] = 'token ' + token;
+  if (body) headers['Content-Type'] = 'application/json';
   if (typeof fetch !== 'undefined') {
     return fetch(url, { method: method || 'GET', headers: headers, body: body || undefined }).then(function(r) {
-      if (!r.ok) { console.warn('GH fail:', r.status, url.split('/').pop()); return null; }
+      if (!r.ok) { console.warn('GH fail:', r.status, method, url.split('/').pop()); return null; }
       return r.json().catch(function(){return null});
-    }).catch(function(e){ console.warn('GH err:', e); return null; });
+    }).catch(function(e){ console.warn('GH err:', e.message); return null; });
   }
   return new Promise(function(resolve) {
     try {
@@ -338,6 +345,7 @@ function _ghFetch(url, method, body, token) {
       xhr.open(method || 'GET', url, true);
       if (token) xhr.setRequestHeader('Authorization', 'token ' + token);
       xhr.setRequestHeader('Accept', 'application/vnd.github+json');
+      if (body) xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.onload = function() { if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); } } else resolve(null); };
       xhr.onerror = function() { resolve(null); };
       xhr.send(body || null);

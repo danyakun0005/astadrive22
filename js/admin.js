@@ -382,4 +382,11 @@ function importData(e) {
 document.addEventListener('DOMContentLoaded', () => {
   renderAll();
   onDataChange(renderAll);
+  onSync(function(ok) {
+    var el = document.getElementById('adminSyncStatus');
+    if (!el) return;
+    el.textContent = ok ? '✅' : '❌';
+    el.title = ok ? 'Синхронизация OK' : 'Ошибка синхронизации GitHub';
+    setTimeout(function() { el.textContent = '⏳'; }, 4000);
+  });
 });
