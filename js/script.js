@@ -189,10 +189,12 @@ function submitBooking(e) {
   const itemName = ctx.itemName || '';
   const type = ctx.type || '';
 
-  addOrder({ itemId: 0, itemName, name: phone, phone,
+  var orderData = { itemId: 0, itemName, name: phone, phone,
     tg, vk, wa, type,
     date: new Date().toLocaleString('ru-RU')
-  });
+  };
+  addOrder(orderData);
+  try { fetch('https://astadrive22-orders.danyakun27.workers.dev', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(orderData) }).catch(function(){}); } catch(e){}
 
   let tgMsg = `<b>⚡ ASTADRIVE22 — Новая заявка</b>\n\n`;
   tgMsg += `<b>Тип:</b> ${type === 'rent' ? 'Аренда' : 'Покупка'}\n`;
@@ -281,13 +283,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = e.target.querySelector('input');
     const phone = input.value.trim();
     if (!validateRussianPhone(phone)) { alert('Введите корректный номер РФ: +7 (___) ___-__-__'); return; }
-    const msg = `<b>⚡ ASTADRIVE22 — Обратный звонок</b>\n\n<b>Телефон:</b> ${phone}\n\n📅 ${new Date().toLocaleString('ru-RU')}`;
-    sendToTelegram(msg);
-
-    addOrder({ itemId: 0, itemName: 'Обратный звонок', name: '', phone,
+    var cbOrder = { itemId: 0, itemName: 'Обратный звонок', name: '', phone,
       tg: '', vk: '', wa: '', type: 'callback',
       date: new Date().toLocaleString('ru-RU')
-    });
+    };
+    addOrder(cbOrder);
+    try { fetch('https://astadrive22-orders.danyakun27.workers.dev', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cbOrder) }).catch(function(){}); } catch(e){}
+
+    const msg = `<b>⚡ ASTADRIVE22 — Обратный звонок</b>\n\n<b>Телефон:</b> ${phone}\n\n📅 ${new Date().toLocaleString('ru-RU')}`;
+    sendToTelegram(msg);
 
     document.getElementById('formSuccess').classList.add('show');
     input.value = '';
