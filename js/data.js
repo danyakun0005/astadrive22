@@ -244,6 +244,8 @@ let _ghSha = null;
 const _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
+var _origNotify = _notify;
+_notify = function() { _origNotify(); _sendPendingTg(); };
 
 // Read from raw.githubusercontent.com — no token needed (works on all devices)
 function _ghGet() {
@@ -323,13 +325,13 @@ function _ghFetch(url, method, body, token) {
   });
 }
 
-// Override saves — push to GitHub on every change
+// Override saves — push to GitHub on every change, then notify + send Telegram
 var _origSaveBikes = saveBikes;
-saveBikes = function(b) { _origSaveBikes(b); try { _ghPut({ bikes: b, shopItems: getShopItems(), orders: getOrders() }); } catch(e){} };
+saveBikes = function(b) { _origSaveBikes(b); try { _ghPut({ bikes: b, shopItems: getShopItems(), orders: getOrders() }).then(_notify); } catch(e){} };
 var _origSaveShop = saveShopItems;
-saveShopItems = function(s) { _origSaveShop(s); try { _ghPut({ bikes: getBikes(), shopItems: s, orders: getOrders() }); } catch(e){} };
+saveShopItems = function(s) { _origSaveShop(s); try { _ghPut({ bikes: getBikes(), shopItems: s, orders: getOrders() }).then(_notify); } catch(e){} };
 var _origSaveOrders = saveOrders;
-saveOrders = function(o) { _origSaveOrders(o); try { _ghPut({ bikes: getBikes(), shopItems: getShopItems(), orders: o }); } catch(e){} };
+saveOrders = function(o) { _origSaveOrders(o); try { _ghPut({ bikes: getBikes(), shopItems: getShopItems(), orders: o }).then(_notify); } catch(e){} };
 
 // Pull cloud data into localStorage (no token needed)
 _ghGet().then(function(data) {
@@ -364,28 +366,12 @@ function isTgConfigured() {
   return TG_BOT_TOKEN && TG_BOT_TOKEN !== 'YOUR_BOT_TOKEN';
 }
 
-function sendToTelegram(text) {
+// Send Telegram for new orders only (tracked via `notified` flag saved to order)
+function _sendPendingTg() {
   if (!isTgConfigured()) return;
-  TG_CHAT_IDS.forEach(function(id) {
-    var fullUrl = 'https://api.telegram.org/bot' + TG_BOT_TOKEN + '/sendMessage?chat_id=' + id + '&text=' + encodeURIComponent(text) + '&parse_mode=HTML';
-    if (typeof fetch !== 'undefined') {
-      fetch(fullUrl, { method: 'GET', mode: 'no-cors' }).catch(function(){});
-    }
-    var img = new Image();
-    img.src = fullUrl;
-  });
-}
-
-// Track sent orders to avoid duplicates
-var _sentOrderIds = {};
-
-function trySendPendingNotifications() {
-  var orders = getOrders();
-  var token = _ghToken();
-  if (!token || !orders.length) return;
+  var orders = getOrders().filter(function(o) { return !o.notified && o.phone && o.id; });
+  if (!orders.length) return;
   orders.forEach(function(o) {
-    if (_sentOrderIds[o.id]) return;
-    if (!o.phone && o.type !== 'callback') return;
     var msg = '<b>⚡ Новая заявка</b>\n\n';
     msg += '<b>Товар:</b> ' + (o.itemName || '—') + '\n';
     msg += '<b>Тип:</b> ' + ({rent:'Аренда',shop:'Покупка',callback:'Звонок'}[o.type] || o.type) + '\n';
@@ -400,10 +386,7 @@ function trySendPendingNotifications() {
       if (typeof fetch !== 'undefined') { fetch(url, { method: 'GET', mode: 'no-cors' }).catch(function(){}); }
       try { var img = new Image(); img.src = url; } catch(e) {}
     });
-    _sentOrderIds[o.id] = true;
+    o.notified = true;
+    _mergeStore({ orders: getOrders() });
   });
 }
-
-// Retry pending notifications every time cloud data syncs
-var _origNotify = _notify;
-_notify = function() { _origNotify(); trySendPendingNotifications(); };
