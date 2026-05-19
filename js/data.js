@@ -249,17 +249,14 @@ function onSync(fn) { _syncCallbacks.push(fn); }
 // File names for separate data parts (smaller = faster writes)
 var _GH_FILES = { bikes: 'db_bikes.json', shopItems: 'db_shop.json', orders: 'db_orders.json' };
 
-// Read ALL cloud files and merge into one object
+// Read ALL cloud files in parallel with timeout
 function _ghGetAll() {
   var keys = ['bikes', 'shopItems', 'orders'];
   var result = {};
-  var chain = Promise.resolve();
-  keys.forEach(function(k) {
-    chain = chain.then(function() {
-      return _ghRead(_GH_FILES[k]).then(function(d) { if (d !== null) result[k] = d; });
-    });
+  var promises = keys.map(function(k) {
+    return _ghRead(_GH_FILES[k]).then(function(d) { if (d !== null) result[k] = d; });
   });
-  return chain.then(function() { return result; });
+  return Promise.all(promises).then(function() { return result; });
 }
 
 function _ghRead(file) {
@@ -269,6 +266,13 @@ function _ghRead(file) {
     _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + file
   ];
   var token = _ghGetToken();
+  function fetchWithTimeout(url, opts, ms) {
+    if (typeof AbortController === 'undefined') return fetch(url, opts);
+    var ctrl = new AbortController();
+    var id = setTimeout(function() { ctrl.abort(); }, ms || 8000);
+    opts.signal = ctrl.signal;
+    return fetch(url, opts).finally(function() { clearTimeout(id); });
+  }
   function tryUrl(idx) {
     if (idx >= urls.length) return Promise.resolve(null);
     var url = urls[idx];
@@ -279,21 +283,21 @@ function _ghRead(file) {
       if (token) headers['Authorization'] = 'token ' + token;
     }
     if (typeof fetch !== 'undefined') {
-      return fetch(url, { headers: headers }).then(function(r) {
+      return fetchWithTimeout(url, { headers: headers }).then(function(r) {
         if (!r.ok) return tryUrl(idx + 1);
         return r.text().then(function(t) { try { return JSON.parse(t); } catch(e) { return tryUrl(idx + 1); } });
       }).catch(function(){ return tryUrl(idx + 1); });
     }
+    // XHR fallback (no timeout needed — less likely to hang)
     return new Promise(function(resolve) {
       try {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
         if (isApi) xhr.setRequestHeader('Accept', 'application/vnd.github.raw+json');
         if (isApi && token) xhr.setRequestHeader('Authorization', 'token ' + token);
-        xhr.onload = function() {
-          if (xhr.status === 200) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { tryUrl(idx+1).then(resolve); } }
-          else tryUrl(idx+1).then(resolve);
-        };
+        xhr.timeout = 10000;
+        xhr.ontimeout = function() { tryUrl(idx+1).then(resolve); };
+        xhr.onload = function() { if (xhr.status === 200) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { tryUrl(idx+1).then(resolve); } } else tryUrl(idx+1).then(resolve); };
         xhr.onerror = function() { tryUrl(idx+1).then(resolve); };
         xhr.send();
       } catch(e) { tryUrl(idx+1).then(resolve); }
@@ -385,12 +389,10 @@ saveShopItems = function(s) { try { _origSaveShop(s); _ghWrite(_GH_FILES.shopIte
 var _origSaveOrders = saveOrders;
 saveOrders = function(o) { try { _origSaveOrders(o); _ghWrite(_GH_FILES.orders, o); } catch(e){} _notify(); };
 
-// On page load: load from GitHub ONLY if localStorage is empty (first visit)
-// Never overwrite local changes — they are the source of truth
+// On page load: load from GitHub in parallel, never overwrite local
 _ghGetAll().then(function(data) {
   if (!data) return;
   var store = getStore();
-  // Only seed from GitHub if local is empty or has fewer bikes
   if (!store || !store.bikes || !store.bikes.length) {
     if (data.bikes && data.bikes.length) _origSaveBikes(data.bikes);
   }
@@ -400,6 +402,7 @@ _ghGetAll().then(function(data) {
   if (!store || !store.orders || !store.orders.length) {
     if (data.orders && data.orders.length) _origSaveOrders(data.orders);
   }
+}).catch(function(){}).then(function() {
   _ghReady = true;
   _notify();
 });
