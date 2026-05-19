@@ -307,39 +307,19 @@ function renderOrders() {
 }
 
 /* ========== SETTINGS ========== */
-function saveGhToken() {
-  var input = document.getElementById('ghTokenInput');
-  var token = input.value.trim();
-  if (!token) { document.getElementById('tokenStatus').textContent = '❌ Введи токен'; return; }
-  try {
-    localStorage.setItem('astadrive22_gh_token', token);
-    document.getElementById('tokenStatus').textContent = '✅ Токен сохранён! (только в этом браузере)';
-    _ghWrite(_GH_FILES.bikes, getBikes()).then(function(r) { updateSyncStatus(); });
-  } catch(e) {
-    document.getElementById('tokenStatus').textContent = '❌ Ошибка сохранения';
-  }
-}
-
-function updateSyncStatus() {
+function checkApiStatus() {
   var el = document.getElementById('syncStatus');
   if (!el) return;
-  var token = _ghToken();
-  if (!token) { el.innerHTML = '❌ Токен не настроен. Вставь токен выше.'; return; }
-  el.innerHTML = '⏳ Проверка токена...';
-  var url = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + _GH_FILES.bikes;
-  _ghGetSha(url, token).then(function(sha) {
-    if (sha) el.innerHTML = '✅ Токен работает! Данные синхронизируются.';
-    else el.innerHTML = '❌ Токен недействителен. Проверь права (нужно repo).';
+  el.innerHTML = '⏳ Проверка...';
+  fetch(_API_URL).then(function(r) {
+    el.innerHTML = r.ok ? '✅ Сервер работает, данные синхронизируются' : '❌ Сервер ответил ' + r.status;
+  }).catch(function() {
+    el.innerHTML = '❌ Нет соединения с сервером';
   });
 }
 
 function loadSettings() {
-  var input = document.getElementById('ghTokenInput');
-  if (input) {
-    var token = _ghToken();
-    if (token) input.value = token;
-  }
-  updateSyncStatus();
+  checkApiStatus();
 }
 
 /* ========== EXPORT / IMPORT ========== */
@@ -368,9 +348,7 @@ function importData(e) {
       if (data.orders) store.orders = data.orders;
       if (data.version) store.version = data.version;
       saveStore(store);
-      if (data.bikes) try { _ghWrite(_GH_FILES.bikes, data.bikes); } catch(ex) {}
-      if (data.shopItems) try { _ghWrite(_GH_FILES.shopItems, data.shopItems); } catch(ex) {}
-      if (data.orders) try { _ghWrite(_GH_FILES.orders, data.orders); } catch(ex) {}
+      if (data.bikes || data.shopItems || data.orders) try { _apiWrite(data); } catch(ex) {}
       renderAll();
       alert('✅ Данные импортированы!');
     } catch(err) { alert('Ошибка импорта: ' + err.message); }

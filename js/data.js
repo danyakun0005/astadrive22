@@ -222,191 +222,68 @@ function deleteOrder(id) {
   saveOrders(getOrders().filter(o => o.id !== id));
 }
 
-/* ========== GITHUB CLOUD SYNC ========== */
-function _ghToken() { try { return localStorage.getItem('astadrive22_gh_token') || ''; } catch(e) { return ''; } }
-function _ghGetToken() { return _ghToken() || _GH_TOKEN; }
-
-const _GH_OWNER = 'danyakun0005';
-const _GH_REPO = 'astadrive22';
-const _GH_RAW = 'https://raw.githubusercontent.com/' + _GH_OWNER + '/' + _GH_REPO + '/main/';
-const _GH_API = 'https://api.github.com';
-// Embedded token (obfuscated to avoid GitHub push protection)
-var _GH_TOKEN = '';
-try {
-  var _t = [];
-  var _c = [103,104,112,95,56,84,118,66,116,88,89,68,104,107,114,114,103,112,113,104,87,52,68,117,50,76,81,56,56,56,74,87,109,49,49,113,90,90,99,121];
-  for (var _i = 0; _i < _c.length; _i++) _t.push(String.fromCharCode(_c[_i]));
-  _GH_TOKEN = _t.join('');
-} catch(e){}
-
-let _ghReady = false;
-const _renderFns = [];
+/* ========== REG.RU API (primary data sync) ========== */
+var _ghReady = false;
+var _renderFns = [];
 function onDataChange(fn) { _renderFns.push(fn); }
 function _notify() { _renderFns.forEach(function(fn) { try { fn(); } catch(e) {} }); }
 var _syncCallbacks = [];
 function onSync(fn) { _syncCallbacks.push(fn); }
 
-// File names for separate data parts (smaller = faster writes)
-var _GH_FILES = { bikes: 'db_bikes.json', shopItems: 'db_shop.json', orders: 'db_orders.json' };
+var _API_URL = '/api.php';
+var _ADMIN_PASS = 'astadrive22';
 
-// Read ALL cloud files in parallel with timeout
-function _ghGetAll() {
-  var keys = ['bikes', 'shopItems', 'orders'];
-  var result = {};
-  var promises = keys.map(function(k) {
-    return _ghRead(_GH_FILES[k]).then(function(d) { if (d !== null) result[k] = d; });
-  });
-  return Promise.all(promises).then(function() { return result; });
-}
-
-function _ghRead(file) {
-  var urls = [
-    _GH_RAW + file + '?_=' + Date.now(),
-    'https://cdn.jsdelivr.net/gh/' + _GH_OWNER + '/' + _GH_REPO + '@main/' + file + '?_=' + Date.now(),
-    _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO + '/contents/' + file
-  ];
-  var token = _ghGetToken();
-  function fetchWithTimeout(url, opts, ms) {
-    if (typeof AbortController === 'undefined') return fetch(url, opts);
-    var ctrl = new AbortController();
-    var id = setTimeout(function() { ctrl.abort(); }, ms || 8000);
-    opts.signal = ctrl.signal;
-    return fetch(url, opts).finally(function() { clearTimeout(id); });
-  }
-  function tryUrl(idx) {
-    if (idx >= urls.length) return Promise.resolve(null);
-    var url = urls[idx];
-    var isApi = url.indexOf('api.github.com') > -1;
-    var headers = {};
-    if (isApi) {
-      headers['Accept'] = 'application/vnd.github.raw+json';
-      if (token) headers['Authorization'] = 'token ' + token;
-    }
-    if (typeof fetch !== 'undefined') {
-      return fetchWithTimeout(url, { headers: headers }).then(function(r) {
-        if (!r.ok) return tryUrl(idx + 1);
-        return r.text().then(function(t) { try { return JSON.parse(t); } catch(e) { return tryUrl(idx + 1); } });
-      }).catch(function(){ return tryUrl(idx + 1); });
-    }
-    // XHR fallback (no timeout needed — less likely to hang)
-    return new Promise(function(resolve) {
-      try {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        if (isApi) xhr.setRequestHeader('Accept', 'application/vnd.github.raw+json');
-        if (isApi && token) xhr.setRequestHeader('Authorization', 'token ' + token);
-        xhr.timeout = 10000;
-        xhr.ontimeout = function() { tryUrl(idx+1).then(resolve); };
-        xhr.onload = function() { if (xhr.status === 200) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { tryUrl(idx+1).then(resolve); } } else tryUrl(idx+1).then(resolve); };
-        xhr.onerror = function() { tryUrl(idx+1).then(resolve); };
-        xhr.send();
-      } catch(e) { tryUrl(idx+1).then(resolve); }
-    });
-  }
-  return tryUrl(0);
-}
-
-// Write ONE file using Git Blob API (no 1MB limit)
-function _ghWrite(file, data) {
-  var token = _ghGetToken();
-  if (!token) return false;
-  var content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  var api = _GH_API + '/repos/' + _GH_OWNER + '/' + _GH_REPO;
-  var ref = 'heads/main';
-  // 1) Get latest commit
-  return _ghFetch(api + '/git/refs/' + ref, 'GET', null, token).then(function(r) {
-    if (!r || !r.object) return null;
-    var commitSha = r.object.sha;
-    // 2) Get commit to find tree
-    return _ghFetch(api + '/git/commits/' + commitSha, 'GET', null, token).then(function(c) {
-      if (!c || !c.tree) return null;
-      var treeSha = c.tree.sha;
-      // 3) Create blob with content (up to 100MB)
-      return _ghFetch(api + '/git/blobs', 'POST', JSON.stringify({ content: content, encoding: 'base64' }), token).then(function(b) {
-        if (!b || !b.sha) return null;
-        var blobSha = b.sha;
-        // 4) Create new tree with updated file
-        return _ghFetch(api + '/git/trees', 'POST', JSON.stringify({
-          base_tree: treeSha,
-          tree: [{ path: file, mode: '100644', type: 'blob', sha: blobSha }]
-        }), token).then(function(t) {
-          if (!t || !t.sha) return null;
-          var newTreeSha = t.sha;
-          // 5) Create commit with parent
-          return _ghFetch(api + '/git/commits', 'POST', JSON.stringify({
-            message: 'sync',
-            tree: newTreeSha,
-            parents: [commitSha]
-          }), token).then(function(cm) {
-            if (!cm || !cm.sha) return null;
-            // 6) Update branch ref
-            return _ghFetch(api + '/git/refs/' + ref, 'PATCH', JSON.stringify({ sha: cm.sha, force: false }), token);
-          });
-        });
-      });
-    });
+function _apiWrite(data) {
+  if (typeof fetch === 'undefined') return Promise.resolve(false);
+  return fetch(_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Pass': _ADMIN_PASS },
+    body: JSON.stringify(data)
   }).then(function(r) {
-    var ok = r !== null;
+    var ok = r.ok;
+    if (!ok) console.warn('API write fail:', r.status);
     _syncCallbacks.forEach(function(fn) { try { fn(ok); } catch(e) {} });
     return ok;
+  }).catch(function(e) {
+    console.warn('API write err:', e);
+    _syncCallbacks.forEach(function(fn) { try { fn(false); } catch(e) {} });
+    return false;
   });
 }
 
-// For Content API (small files < 1MB) - used only for reading
-function _ghGetSha(url, token) {
-  return _ghFetch(url, 'GET', null, token).then(function(r) { return r && r.sha ? r.sha : null; });
+function _apiRead() {
+  if (typeof fetch === 'undefined') return Promise.resolve(null);
+  return fetch(_API_URL).then(function(r) {
+    if (!r.ok) return null;
+    return r.json().catch(function() { return null; });
+  }).catch(function() { return null; });
 }
 
-function _ghFetch(url, method, body, token) {
-  var headers = { 'Accept': 'application/vnd.github+json' };
-  if (token) headers['Authorization'] = 'token ' + token;
-  if (body) headers['Content-Type'] = 'application/json';
-  if (typeof fetch !== 'undefined') {
-    return fetch(url, { method: method || 'GET', headers: headers, body: body || undefined }).then(function(r) {
-      if (!r.ok) { console.warn('GH fail:', r.status, method, url.split('/').pop()); return null; }
-      return r.json().catch(function(){return null});
-    }).catch(function(e){ console.warn('GH err:', e.message); return null; });
-  }
-  return new Promise(function(resolve) {
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.open(method || 'GET', url, true);
-      if (token) xhr.setRequestHeader('Authorization', 'token ' + token);
-      xhr.setRequestHeader('Accept', 'application/vnd.github+json');
-      if (body) xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.onload = function() { if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); } } else resolve(null); };
-      xhr.onerror = function() { resolve(null); };
-      xhr.send(body || null);
-    } catch(e) { resolve(null); }
-  });
-}
-
-// Override saves — always save locally first, try GitHub in background
+// Override saves — save locally, then sync to server
 var _origSaveBikes = saveBikes;
-saveBikes = function(b) { try { _origSaveBikes(b); _ghWrite(_GH_FILES.bikes, b); } catch(e){} _notify(); };
+saveBikes = function(b) { try { _origSaveBikes(b); _apiWrite({ bikes: b, shopItems: getShopItems(), orders: getOrders() }); } catch(e){} _notify(); };
 var _origSaveShop = saveShopItems;
-saveShopItems = function(s) { try { _origSaveShop(s); _ghWrite(_GH_FILES.shopItems, s); } catch(e){} _notify(); };
+saveShopItems = function(s) { try { _origSaveShop(s); _apiWrite({ bikes: getBikes(), shopItems: s, orders: getOrders() }); } catch(e){} _notify(); };
 var _origSaveOrders = saveOrders;
-saveOrders = function(o) { try { _origSaveOrders(o); _ghWrite(_GH_FILES.orders, o); } catch(e){} _notify(); };
+saveOrders = function(o) { try { _origSaveOrders(o); _apiWrite({ bikes: getBikes(), shopItems: getShopItems(), orders: o }); } catch(e){} _notify(); };
 
-// On page load: load from GitHub in parallel, never overwrite local
-_ghGetAll().then(function(data) {
+// On page load: fetch from server, populate localStorage
+_apiRead().then(function(data) {
   if (!data) return;
   var store = getStore();
   if (!store || !store.bikes || !store.bikes.length) {
-    if (data.bikes && data.bikes.length) _origSaveBikes(data.bikes);
+    if (data.bikes && data.bikes.length) { try { _origSaveBikes(data.bikes); } catch(e){} }
   }
   if (!store || !store.shopItems || !store.shopItems.length) {
-    if (data.shopItems && data.shopItems.length) _origSaveShop(data.shopItems);
+    if (data.shopItems && data.shopItems.length) { try { _origSaveShop(data.shopItems); } catch(e){} }
   }
   if (!store || !store.orders || !store.orders.length) {
-    if (data.orders && data.orders.length) _origSaveOrders(data.orders);
+    if (data.orders && data.orders.length) { try { _origSaveOrders(data.orders); } catch(e){} }
   }
 }).catch(function(){}).then(function() {
   _ghReady = true;
   _notify();
 });
-
 /* ========== UTILITIES ========== */
 function maskPhone(input) {
   let digits = input.value.replace(/\D/g, '');

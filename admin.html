@@ -117,16 +117,10 @@
           </div>
           <div class="admin-settings">
             <p style="color:var(--text-dim);margin-bottom:16px;line-height:1.6">
-              GitHub токен нужен для авто-синхронизации данных между устройствами.<br>
-              Как получить: <code style="color:var(--accent)">github.com/settings/tokens</code> → Generate new token (classic) → галочка <strong>repo</strong>
+              Данные хранятся на сервере reg.ru. Изменения в админке сразу видны всем посетителям.
             </p>
-            <input type="password" id="ghTokenInput" style="width:100%;max-width:500px;padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;color:var(--text);outline:none" placeholder="Вставьте GitHub токен (ghp_...)" oninput="document.getElementById('tokenStatus').textContent=''">
-            <div style="margin-top:12px;display:flex;gap:12px;align-items:center">
-              <button class="btn btn--primary" onclick="saveGhToken()">💾 Сохранить токен</button>
-              <span id="tokenStatus" style="color:var(--accent)"></span>
-            </div>
-            <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
-              <p style="color:var(--text-dim);margin-bottom:12px">Статус синхронизации:</p>
+            <div style="border-top:1px solid var(--border);padding-top:20px">
+              <p style="color:var(--text-dim);margin-bottom:12px">Статус сервера:</p>
               <div id="syncStatus" style="color:var(--text-dim)">⏳ Проверка...</div>
             </div>
           </div>
